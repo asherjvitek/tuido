@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"slices"
 	// "os"
 	// "strings"
 	//
@@ -12,8 +13,9 @@ import (
 )
 
 type list struct {
-	title string
-	items []string
+	title          string
+	items          []string
+	scrollposition int
 }
 
 type model struct {
@@ -26,44 +28,168 @@ type model struct {
 	input        textinput.Model
 }
 
+var (
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#23d18b"))
+
+	selectedItemStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("#2a3d41"))
+
+	border = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder())
+)
+
 func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func countLines(str string) int {
+	lines := 1
+	for _, r := range str {
+		if r == '\n' {
+			lines++
+		}
+	}
 
+	return lines
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case tea.KeyCtrlC.String(), "q":
-			return m, tea.Quit
-		case "down":
-			if m.selectedItem < len(m.lists[m.selectedList].items)-1 {
-				m.selectedItem++
-			}
-		case "up":
-			if m.selectedItem > 0 {
-				m.selectedItem--
-			}
-		case "right":
-			if m.selectedList < len(m.lists)-1 {
-				m.selectedList++
-			}
-		case "left":
-			if m.selectedList > 0 {
-				m.selectedList--
-			}
-		case "enter":
-			if !m.editing {
-				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
-				m.input.Focus()
-				m.editing = true
-			}
-		case "esc":
-			if m.editing {
+		if m.editing {
+			switch msg.String() {
+			case "esc":
 				m.input.Blur()
 				m.lists[m.selectedList].items[m.selectedItem] = m.input.Value()
 				m.editing = false
+			default:
+				var cmd tea.Cmd
+				m.input, cmd = m.input.Update(msg)
+
+				return m, cmd
+			}
+		} else {
+			switch msg.String() {
+			case tea.KeyCtrlC.String(), "q":
+				return m, tea.Quit
+			case "down", "j":
+				if m.selectedItem < len(m.lists[m.selectedList].items)-1 {
+					m.selectedItem++
+				}
+			case "up", "k":
+				if m.selectedItem > 0 {
+					m.selectedItem--
+				}
+			case "right", "l":
+				if m.selectedList < len(m.lists)-1 {
+					m.selectedList++
+					if m.selectedItem > len(m.lists[m.selectedList].items) {
+						m.selectedItem = len(m.lists[m.selectedList].items) - 1
+					}
+				}
+			case "left", "h":
+				if m.selectedList > 0 {
+					m.selectedList--
+				}
+			case "ctrl+home":
+				m.selectedList = 0
+				if m.selectedItem > len(m.lists[m.selectedList].items) {
+					m.selectedItem = len(m.lists[m.selectedList].items) - 1
+				}
+			case "ctrl+end":
+				m.selectedList = len(m.lists) - 1
+				if m.selectedItem > len(m.lists[m.selectedList].items) {
+					m.selectedItem = len(m.lists[m.selectedList].items) - 1
+				}
+			case "home":
+				m.selectedItem = 0
+			case "end":
+				m.selectedItem = len(m.lists[m.selectedList].items) - 1
+			case "shift+down", "J":
+				if m.selectedItem == len(m.lists[m.selectedList].items)-1 {
+					break
+				}
+
+				a := m.lists[m.selectedList].items[m.selectedItem]
+				b := m.lists[m.selectedList].items[m.selectedItem+1]
+
+				m.lists[m.selectedList].items[m.selectedItem] = b
+				m.lists[m.selectedList].items[m.selectedItem+1] = a
+
+				m.selectedItem++
+			case "shift+up", "K":
+				if m.selectedItem == 0 {
+					break
+				}
+
+				a := m.lists[m.selectedList].items[m.selectedItem]
+				b := m.lists[m.selectedList].items[m.selectedItem-1]
+
+				m.lists[m.selectedList].items[m.selectedItem] = b
+				m.lists[m.selectedList].items[m.selectedItem-1] = a
+
+				m.selectedItem--
+			case "shift+right", "L":
+				if m.selectedList == len(m.lists)-1 {
+					break
+				}
+
+				a := m.lists[m.selectedList].items[m.selectedItem]
+				m.lists[m.selectedList].items = slices.Delete(m.lists[m.selectedList].items, m.selectedItem, m.selectedItem+1)
+
+				m.selectedList++
+
+				if m.selectedItem > len(m.lists[m.selectedList].items) {
+					m.selectedItem = len(m.lists[m.selectedList].items)
+				}
+
+				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, a)
+			case "shift+left", "H":
+				if m.selectedList == 0 {
+					break
+				}
+
+				a := m.lists[m.selectedList].items[m.selectedItem]
+				m.lists[m.selectedList].items = slices.Delete(m.lists[m.selectedList].items, m.selectedItem, m.selectedItem+1)
+
+				m.selectedList--
+
+				if m.selectedItem > len(m.lists[m.selectedList].items) {
+					m.selectedItem = len(m.lists[m.selectedList].items)
+				}
+
+				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, a)
+			case "o":
+				m.selectedItem++
+				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, "")
+				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
+				m.input.Focus()
+				m.editing = true
+			case "O":
+				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, "")
+				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
+				m.input.Focus()
+				m.editing = true
+			case "D":
+				m.lists[m.selectedList].items = slices.Delete(m.lists[m.selectedList].items, m.selectedItem, m.selectedItem+1)
+				if m.selectedItem > 0 {
+					m.selectedItem--
+				}
+			case "i", "I":
+				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
+				m.input.Focus()
+				m.input.CursorStart()
+				m.editing = true
+			case "a", "A":
+				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
+				m.input.Focus()
+				m.input.CursorEnd()
+				m.editing = true
+			case "s", "S":
+				m.input.SetValue("")
+				m.input.Focus()
+				m.editing = true
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -71,30 +197,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 	}
 
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-
-	return m, cmd
+	return m, nil
 }
 
-var (
-	selectedItemStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#ff0000")).
-				Align(lipgloss.Center)
-
-	editingStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#0000ff")).
-			Align(lipgloss.Center)
-)
-
 func (m model) View() string {
-	border := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Padding(0, 1)
-
-	listWidth := (m.width-border.GetHorizontalBorderSize())/3 - len(m.lists)
-	contentWidth := m.width - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
+	// contentWidth := m.width - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
 	contentHeight := m.height - border.GetVerticalBorderSize() - border.GetVerticalPadding()
+
+	listWidth := (m.width-border.GetHorizontalBorderSize())/len(m.lists) - 1
+	todoWidth := listWidth - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
 
 	lists := make([]string, len(m.lists))
 	for li, v := range m.lists {
@@ -103,46 +214,61 @@ func (m model) View() string {
 			BorderTop(false).
 			BorderRight(false).
 			BorderLeft(false).
-			Width(listWidth - 2).
+			Width(listWidth).
 			Align(lipgloss.Center).
-			Render(v.title)
+			Render(titleStyle.Render(v.title))
 
-		items := make([]string, len(v.items))
+		titleHeight := countLines(title)
+
+		pages := make([][]string, 1)
+		pages[0] = make([]string, 0)
+		pageIndex := 0
+		pageLen := 0
+		selectedPage := 0
 
 		for ii, v := range v.items {
+			var content string
 			if m.selectedList == li && m.selectedItem == ii {
 				if m.editing {
-					items[ii] = border.Render(m.input.View())
+					content = border.Width(todoWidth).Render(m.input.View())
 				} else {
-					items[ii] = border.Render(selectedItemStyle.Render(v))
+					content = selectedItemStyle.Render(border.Width(todoWidth).Render(v))
 				}
 			} else {
-				items[ii] = border.Render(v)
+				content = border.Width(todoWidth).Render(v)
 			}
+
+			itemHeight := countLines(content)
+			if pageLen+itemHeight+titleHeight > contentHeight {
+				pages = append(pages, make([]string, 1))
+				pageIndex++
+				pageLen = 0
+			}
+
+			if m.selectedItem == ii {
+				selectedPage = pageIndex
+			}
+
+			pages[pageIndex] = append(pages[pageIndex], content)
+			pageLen += itemHeight
 		}
 
-		todos := lipgloss.JoinVertical(lipgloss.Left, items...)
+		todos := lipgloss.JoinVertical(lipgloss.Left, pages[selectedPage]...)
 		list := lipgloss.JoinVertical(lipgloss.Left, title, todos)
 
 		text := lipgloss.NewStyle().
-			Width(contentWidth / 3).
-			Height(contentHeight - 3).
-			Align(lipgloss.Center).
+			Width(listWidth).
+			Height(contentHeight).
+			Align(lipgloss.Left).
 			AlignVertical(lipgloss.Top).
 			Render(list)
 
-		lists = append(lists, border.
+		lists[li] = border.
 			Width(listWidth).
-			Height(20).
-			Render(text))
+			Render(text)
 	}
 
-	view := border.
-		Width(m.width - 2).
-		Height(m.height - 2).
-		Render(lipgloss.JoinHorizontal(lipgloss.Left, lists...))
-
-	return view
+	return lipgloss.JoinHorizontal(lipgloss.Left, lists...)
 }
 
 func main() {
