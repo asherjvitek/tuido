@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"slices"
-	// "os"
-	// "strings"
-	//
+	"math"
+	// "github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"os"
+	"slices"
 )
 
 type list struct {
@@ -25,6 +24,7 @@ type model struct {
 	selectedList int
 	selectedItem int
 	editing      bool
+	editingTitle bool
 	input        textinput.Model
 }
 
@@ -43,6 +43,9 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
+// I think that there must be some better way to do this but it works for the moment.
+// I wonder if this would perform if you had like way too many items in one list like I
+// do in trello in the completed bucket
 func countLines(str string) int {
 	lines := 1
 	for _, r := range str {
@@ -63,6 +66,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.Blur()
 				m.lists[m.selectedList].items[m.selectedItem] = m.input.Value()
 				m.editing = false
+			default:
+				var cmd tea.Cmd
+				m.input, cmd = m.input.Update(msg)
+
+				return m, cmd
+			}
+		} else if m.editingTitle {
+			switch msg.String() {
+			case "esc":
+				m.input.Blur()
+				m.lists[m.selectedList].title = m.input.Value()
+				m.editingTitle = false
 			default:
 				var cmd tea.Cmd
 				m.input, cmd = m.input.Update(msg)
@@ -161,7 +176,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, a)
 			case "o":
-				m.selectedItem++
+				if len(m.lists[m.selectedList].items) > 0 {
+					m.selectedItem++
+				}
+
 				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, "")
 				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
 				m.input.Focus()
@@ -172,24 +190,55 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.Focus()
 				m.editing = true
 			case "D":
+				if len(m.lists[m.selectedList].items) == 0 {
+					break
+				}
+
 				m.lists[m.selectedList].items = slices.Delete(m.lists[m.selectedList].items, m.selectedItem, m.selectedItem+1)
 				if m.selectedItem > 0 {
 					m.selectedItem--
 				}
 			case "i", "I":
+				if len(m.lists[m.selectedList].items) == 0 {
+					break
+				}
+
 				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
 				m.input.Focus()
 				m.input.CursorStart()
 				m.editing = true
 			case "a", "A":
+				if len(m.lists[m.selectedList].items) == 0 {
+					break
+				}
+
 				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
 				m.input.Focus()
 				m.input.CursorEnd()
 				m.editing = true
 			case "s", "S":
+				if len(m.lists[m.selectedList].items) == 0 {
+					break
+				}
+
 				m.input.SetValue("")
 				m.input.Focus()
 				m.editing = true
+			case "t":
+				m.input.SetValue(m.lists[m.selectedList].title)
+				m.input.Focus()
+				m.editingTitle = true
+			case "N":
+				m.lists = append(m.lists, list{
+					title:          "",
+					items:          make([]string, 0),
+					scrollposition: 0,
+				})
+				m.selectedList = len(m.lists) - 1
+				m.selectedItem = 0
+				m.editingTitle = true
+				m.input.SetValue(m.lists[m.selectedList].title)
+				m.input.Focus()
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -204,11 +253,18 @@ func (m model) View() string {
 	// contentWidth := m.width - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
 	contentHeight := m.height - border.GetVerticalBorderSize() - border.GetVerticalPadding()
 
-	listWidth := (m.width-border.GetHorizontalBorderSize())/len(m.lists) - 1
+	listWidth := int(math.Floor(float64(m.width-border.GetHorizontalBorderSize())/float64(len(m.lists)))) - 2
 	todoWidth := listWidth - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
+	// m.input.SetWidth(todoWidth)
 
 	lists := make([]string, len(m.lists))
 	for li, v := range m.lists {
+		styledTitle := titleStyle.Render(v.title)
+
+		if m.editingTitle && li == m.selectedList {
+			styledTitle = titleStyle.Render(m.input.View())
+		}
+
 		title := border.
 			BorderBottom(true).
 			BorderTop(false).
@@ -216,7 +272,7 @@ func (m model) View() string {
 			BorderLeft(false).
 			Width(listWidth).
 			Align(lipgloss.Center).
-			Render(titleStyle.Render(v.title))
+			Render(styledTitle)
 
 		titleHeight := countLines(title)
 
@@ -309,6 +365,7 @@ func main() {
 	}
 
 	model.input.Prompt = ""
+	// model.input.ShowLineNumbers = false
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
