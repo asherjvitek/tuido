@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"math"
+	"strconv"
 	// "github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,14 +29,14 @@ type model struct {
 }
 
 var (
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#23d18b"))
-
-	selectedItemStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#2a3d41"))
-
 	border = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder())
+
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("5"))
+
+	selectedItemStyle = border.
+				BorderForeground(lipgloss.Color("11"))
 )
 
 func (m model) Init() tea.Cmd {
@@ -253,13 +253,13 @@ func (m model) View() string {
 	// contentWidth := m.width - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
 	contentHeight := m.height - border.GetVerticalBorderSize() - border.GetVerticalPadding()
 
-	listWidth := int(math.Floor(float64(m.width-border.GetHorizontalBorderSize())/float64(len(m.lists)))) - 2
+	listWidth := (m.width - border.GetHorizontalBorderSize()*len(m.lists))/len(m.lists)
 	todoWidth := listWidth - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
 	// m.input.SetWidth(todoWidth)
 
 	lists := make([]string, len(m.lists))
 	for li, v := range m.lists {
-		styledTitle := titleStyle.Render(v.title)
+		styledTitle := titleStyle.Render(strconv.Itoa(m.width))
 
 		if m.editingTitle && li == m.selectedList {
 			styledTitle = titleStyle.Render(m.input.View())
@@ -288,7 +288,7 @@ func (m model) View() string {
 				if m.editing {
 					content = border.Width(todoWidth).Render(m.input.View())
 				} else {
-					content = selectedItemStyle.Render(border.Width(todoWidth).Render(v))
+					content = selectedItemStyle.Width(todoWidth).Render(v)
 				}
 			} else {
 				content = border.Width(todoWidth).Render(v)
