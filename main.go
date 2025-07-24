@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"strconv"
-	// "github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	lg "github.com/charmbracelet/lipgloss"
 	"os"
 	"slices"
 )
@@ -17,7 +15,7 @@ type list struct {
 	scrollposition int
 }
 
-type model struct {
+type board struct {
 	lists        []list
 	width        int
 	height       int
@@ -28,43 +26,185 @@ type model struct {
 	input        textinput.Model
 }
 
-var (
-	border = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder())
 
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("5"))
+type EditType int
 
-	selectedItemStyle = border.
-				BorderForeground(lipgloss.Color("11"))
+const (
+	EditTypeStart EditType = iota
+	EditTypeEnd
+	EditTypeClear
 )
 
-func (m model) Init() tea.Cmd {
+func (m board) WorkingList() *list {
+	return &m.lists[m.selectedList]
+}
+
+func (m board) WorkingItems() *[]string {
+	return &m.lists[m.selectedList].items
+}
+
+func (m board) WorkingItemsLen() int {
+	return len(m.lists[m.selectedList].items)
+}
+
+func (m *board) MoveItemToList(dest int) {
+	if dest > len(m.lists)-1 || dest < 0 {
+		return
+	}
+
+	a := (*m.WorkingItems())[m.selectedItem]
+	*m.WorkingItems() = slices.Delete(*m.WorkingItems(), m.selectedItem, m.selectedItem+1)
+
+	m.selectedList = dest
+
+	if m.selectedItem > m.WorkingItemsLen() {
+		m.selectedItem = m.WorkingItemsLen()
+	}
+
+	*m.WorkingItems() = slices.Insert(*m.WorkingItems(), m.selectedItem, a)
+}
+
+func (m *board) MoveItem(dest int) {
+	if dest < 0 || dest > m.WorkingItemsLen() {
+		return
+	}
+
+	a := (*m.WorkingItems())[m.selectedItem]
+	b := (*m.WorkingItems())[dest]
+
+	(*m.WorkingItems())[m.selectedItem] = b
+	(*m.WorkingItems())[dest] = a
+
+	m.selectedItem = dest
+}
+
+func (m *board) AddItem(dest int) {
+	if dest > m.selectedItem && m.WorkingItemsLen() > 0 {
+		m.selectedItem = dest
+	}
+
+	*m.WorkingItems() = slices.Insert(*m.WorkingItems(), m.selectedItem, "")
+	m.input.SetValue((*m.WorkingItems())[m.selectedItem])
+	m.input.Focus()
+	m.editing = true
+}
+
+func (m *board) DeleteItem() {
+	if m.WorkingItemsLen() == 0 {
+		return
+	}
+
+	*m.WorkingItems() = slices.Delete(*m.WorkingItems(), m.selectedItem, m.selectedItem+1)
+	if m.selectedItem > 0 {
+		m.selectedItem--
+	}
+}
+
+func (m *board) EditItem(cursorLocation EditType) {
+	if m.WorkingItemsLen() == 0 {
+		return
+	}
+
+	m.input.Focus()
+
+	switch cursorLocation {
+	case EditTypeStart:
+		m.input.SetValue((*m.WorkingItems())[m.selectedItem])
+		m.input.CursorStart()
+	case EditTypeEnd:
+		m.input.SetValue((*m.WorkingItems())[m.selectedItem])
+		m.input.CursorEnd()
+	case EditTypeClear:
+		m.input.SetValue("")
+	}
+
+	m.editing = true
+}
+
+func (m *board) EditTitle() {
+	m.input.SetValue(m.WorkingList().title)
+	m.input.Focus()
+	m.editingTitle = true
+}
+
+func (m *board) AddList() {
+	m.lists = append(m.lists, list{
+		title:          "",
+		items:          make([]string, 0),
+		scrollposition: 0,
+	})
+	m.selectedList = len(m.lists) - 1
+	m.selectedItem = 0
+	m.editingTitle = true
+	m.input.SetValue(m.WorkingList().title)
+	m.input.Focus()
+}
+
+func (m *board) MoveList(dest int) {
+	if dest < 0 || dest > len(m.lists) {
+		return
+	}
+
+	a := m.lists[m.selectedList]
+	b := m.lists[dest]
+
+	m.lists[m.selectedList] = b
+	m.lists[dest] = a
+
+	m.selectedList = dest
+}
+
+func (m *board) Navigate(itemDest int, listDest int) {
+
+	if itemDest != m.selectedItem {
+		if itemDest > m.WorkingItemsLen()-1 || itemDest < 0 {
+			return
+		}
+
+		m.selectedItem = itemDest
+	}
+
+	if listDest != m.selectedList {
+		if listDest > len(m.lists)-1 || listDest < 0 {
+			return
+		}
+
+		m.selectedList = listDest
+		if m.selectedItem > m.WorkingItemsLen()-1 {
+			m.selectedItem = m.WorkingItemsLen() - 1
+		}
+	}
+}
+
+var (
+	border = lg.NewStyle().
+		Border(lg.RoundedBorder())
+
+	titleStyle = lg.NewStyle().
+			Foreground(lg.Color("5"))
+
+	listStyle = border.
+			Margin(1, 1, 1, 1)
+
+	selectedListStyle = listStyle.
+				BorderForeground(lg.Color("2"))
+
+	selectedItemStyle = border.
+				BorderForeground(lg.Color("11"))
+)
+
+func (m board) Init() tea.Cmd {
 	return nil
 }
 
-// I think that there must be some better way to do this but it works for the moment.
-// I wonder if this would perform if you had like way too many items in one list like I
-// do in trello in the completed bucket
-func countLines(str string) int {
-	lines := 1
-	for _, r := range str {
-		if r == '\n' {
-			lines++
-		}
-	}
-
-	return lines
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.editing {
 			switch msg.String() {
 			case "esc":
 				m.input.Blur()
-				m.lists[m.selectedList].items[m.selectedItem] = m.input.Value()
+				(*m.WorkingItems())[m.selectedItem] = m.input.Value()
 				m.editing = false
 			default:
 				var cmd tea.Cmd
@@ -76,7 +216,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "esc":
 				m.input.Blur()
-				m.lists[m.selectedList].title = m.input.Value()
+				m.WorkingList().title = m.input.Value()
 				m.editingTitle = false
 			default:
 				var cmd tea.Cmd
@@ -88,157 +228,56 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case tea.KeyCtrlC.String(), "q":
 				return m, tea.Quit
+
+			//Navigation
 			case "down", "j":
-				if m.selectedItem < len(m.lists[m.selectedList].items)-1 {
-					m.selectedItem++
-				}
+				m.Navigate(m.selectedItem+1, m.selectedList)
 			case "up", "k":
-				if m.selectedItem > 0 {
-					m.selectedItem--
-				}
+				m.Navigate(m.selectedItem-1, m.selectedList)
 			case "right", "l":
-				if m.selectedList < len(m.lists)-1 {
-					m.selectedList++
-					if m.selectedItem > len(m.lists[m.selectedList].items) {
-						m.selectedItem = len(m.lists[m.selectedList].items) - 1
-					}
-				}
+				m.Navigate(m.selectedItem, m.selectedList+1)
 			case "left", "h":
-				if m.selectedList > 0 {
-					m.selectedList--
-				}
+				m.Navigate(m.selectedItem, m.selectedList-1)
 			case "ctrl+home":
-				m.selectedList = 0
-				if m.selectedItem > len(m.lists[m.selectedList].items) {
-					m.selectedItem = len(m.lists[m.selectedList].items) - 1
-				}
+				m.Navigate(m.selectedItem, 0)
 			case "ctrl+end":
-				m.selectedList = len(m.lists) - 1
-				if m.selectedItem > len(m.lists[m.selectedList].items) {
-					m.selectedItem = len(m.lists[m.selectedList].items) - 1
-				}
+				m.Navigate(m.selectedItem, len(m.lists)-1)
 			case "home":
-				m.selectedItem = 0
+				m.Navigate(0, m.selectedList)
 			case "end":
-				m.selectedItem = len(m.lists[m.selectedList].items) - 1
+				m.Navigate(m.WorkingItemsLen()-1, m.selectedList)
+
+			// Moving things
 			case "shift+down", "J":
-				if m.selectedItem == len(m.lists[m.selectedList].items)-1 {
-					break
-				}
-
-				a := m.lists[m.selectedList].items[m.selectedItem]
-				b := m.lists[m.selectedList].items[m.selectedItem+1]
-
-				m.lists[m.selectedList].items[m.selectedItem] = b
-				m.lists[m.selectedList].items[m.selectedItem+1] = a
-
-				m.selectedItem++
+				m.MoveItem(m.selectedItem + 1)
 			case "shift+up", "K":
-				if m.selectedItem == 0 {
-					break
-				}
-
-				a := m.lists[m.selectedList].items[m.selectedItem]
-				b := m.lists[m.selectedList].items[m.selectedItem-1]
-
-				m.lists[m.selectedList].items[m.selectedItem] = b
-				m.lists[m.selectedList].items[m.selectedItem-1] = a
-
-				m.selectedItem--
+				m.MoveItem(m.selectedItem - 1)
 			case "shift+right", "L":
-				if m.selectedList == len(m.lists)-1 {
-					break
-				}
-
-				a := m.lists[m.selectedList].items[m.selectedItem]
-				m.lists[m.selectedList].items = slices.Delete(m.lists[m.selectedList].items, m.selectedItem, m.selectedItem+1)
-
-				m.selectedList++
-
-				if m.selectedItem > len(m.lists[m.selectedList].items) {
-					m.selectedItem = len(m.lists[m.selectedList].items)
-				}
-
-				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, a)
+				m.MoveItemToList(m.selectedList + 1)
 			case "shift+left", "H":
-				if m.selectedList == 0 {
-					break
-				}
+				m.MoveItemToList(m.selectedList - 1)
+			case "alt+right", "alt+l", "alt+L":
+				m.MoveList(m.selectedList + 1)
+			case "alt+left", "alt+h", "alt+H":
+				m.MoveList(m.selectedList - 1)
 
-				a := m.lists[m.selectedList].items[m.selectedItem]
-				m.lists[m.selectedList].items = slices.Delete(m.lists[m.selectedList].items, m.selectedItem, m.selectedItem+1)
-
-				m.selectedList--
-
-				if m.selectedItem > len(m.lists[m.selectedList].items) {
-					m.selectedItem = len(m.lists[m.selectedList].items)
-				}
-
-				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, a)
+			//Editing
 			case "o":
-				if len(m.lists[m.selectedList].items) > 0 {
-					m.selectedItem++
-				}
-
-				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, "")
-				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
-				m.input.Focus()
-				m.editing = true
+				m.AddItem(m.selectedItem + 1)
 			case "O":
-				m.lists[m.selectedList].items = slices.Insert(m.lists[m.selectedList].items, m.selectedItem, "")
-				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
-				m.input.Focus()
-				m.editing = true
+				m.AddItem(m.selectedItem)
 			case "D":
-				if len(m.lists[m.selectedList].items) == 0 {
-					break
-				}
-
-				m.lists[m.selectedList].items = slices.Delete(m.lists[m.selectedList].items, m.selectedItem, m.selectedItem+1)
-				if m.selectedItem > 0 {
-					m.selectedItem--
-				}
+				m.DeleteItem()
 			case "i", "I":
-				if len(m.lists[m.selectedList].items) == 0 {
-					break
-				}
-
-				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
-				m.input.Focus()
-				m.input.CursorStart()
-				m.editing = true
+				m.EditItem(EditTypeStart)
 			case "a", "A":
-				if len(m.lists[m.selectedList].items) == 0 {
-					break
-				}
-
-				m.input.SetValue(m.lists[m.selectedList].items[m.selectedItem])
-				m.input.Focus()
-				m.input.CursorEnd()
-				m.editing = true
+				m.EditItem(EditTypeEnd)
 			case "s", "S":
-				if len(m.lists[m.selectedList].items) == 0 {
-					break
-				}
-
-				m.input.SetValue("")
-				m.input.Focus()
-				m.editing = true
+				m.EditItem(EditTypeClear)
 			case "t":
-				m.input.SetValue(m.lists[m.selectedList].title)
-				m.input.Focus()
-				m.editingTitle = true
+				m.EditTitle()
 			case "N":
-				m.lists = append(m.lists, list{
-					title:          "",
-					items:          make([]string, 0),
-					scrollposition: 0,
-				})
-				m.selectedList = len(m.lists) - 1
-				m.selectedItem = 0
-				m.editingTitle = true
-				m.input.SetValue(m.lists[m.selectedList].title)
-				m.input.Focus()
+				m.AddList()
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -249,17 +288,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) View() string {
-	// contentWidth := m.width - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
-	contentHeight := m.height - border.GetVerticalBorderSize() - border.GetVerticalPadding()
+func (m board) View() string {
+	listLen := len(m.lists)
 
-	listWidth := (m.width - border.GetHorizontalBorderSize()*len(m.lists))/len(m.lists)
+	contentHeight := m.height - listStyle.GetVerticalBorderSize() - listStyle.GetVerticalMargins()
+	listWidth := (m.width - (listStyle.GetHorizontalBorderSize()+listStyle.GetHorizontalMargins())*listLen) / listLen
 	todoWidth := listWidth - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
-	// m.input.SetWidth(todoWidth)
 
-	lists := make([]string, len(m.lists))
+	lists := make([]string, listLen)
 	for li, v := range m.lists {
-		styledTitle := titleStyle.Render(strconv.Itoa(m.width))
+		styledTitle := titleStyle.Render(v.title)
 
 		if m.editingTitle && li == m.selectedList {
 			styledTitle = titleStyle.Render(m.input.View())
@@ -271,7 +309,7 @@ func (m model) View() string {
 			BorderRight(false).
 			BorderLeft(false).
 			Width(listWidth).
-			Align(lipgloss.Center).
+			Align(lg.Center).
 			Render(styledTitle)
 
 		titleHeight := countLines(title)
@@ -286,7 +324,7 @@ func (m model) View() string {
 			var content string
 			if m.selectedList == li && m.selectedItem == ii {
 				if m.editing {
-					content = border.Width(todoWidth).Render(m.input.View())
+					content = selectedItemStyle.Width(todoWidth).Render(m.input.View())
 				} else {
 					content = selectedItemStyle.Width(todoWidth).Render(v)
 				}
@@ -309,26 +347,31 @@ func (m model) View() string {
 			pageLen += itemHeight
 		}
 
-		todos := lipgloss.JoinVertical(lipgloss.Left, pages[selectedPage]...)
-		list := lipgloss.JoinVertical(lipgloss.Left, title, todos)
+		todos := lg.JoinVertical(lg.Left, pages[selectedPage]...)
+		list := lg.JoinVertical(lg.Left, title, todos)
 
-		text := lipgloss.NewStyle().
+		text := lg.NewStyle().
 			Width(listWidth).
 			Height(contentHeight).
-			Align(lipgloss.Left).
-			AlignVertical(lipgloss.Top).
+			Align(lg.Left).
+			AlignVertical(lg.Top).
 			Render(list)
 
-		lists[li] = border.
+		ls := listStyle
+		if m.selectedList == li {
+			ls = selectedListStyle
+		}
+
+		lists[li] = ls.
 			Width(listWidth).
 			Render(text)
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Left, lists...)
+	return lg.JoinHorizontal(lg.Left, lists...)
 }
 
 func main() {
-	model := model{
+	model := board{
 		lists: []list{
 			{
 				title: "TODO",
@@ -365,7 +408,6 @@ func main() {
 	}
 
 	model.input.Prompt = ""
-	// model.input.ShowLineNumbers = false
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
 

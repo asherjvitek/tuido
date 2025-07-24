@@ -1,4 +1,4 @@
-module tuido.com/tuido
+module github.com/asherjvitek/tuido
 
 go 1.24.5
 
