@@ -30,6 +30,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		boards.height = m.height
 		boards.width = m.width
 
+		// I know that I am missing something but it would appear that the name 
+		// updates are not flowing through but other updates to the screen model are.....
+		switch screen := m.screen.(type) {
+			case board: 
+			for i, b := range m.boards.boards {
+				if (b.id == screen.id) {
+					m.boards.boards[i] = screen
+				}
+			}
+		}
+
 		m.screen = boards
 
 		return m, nil

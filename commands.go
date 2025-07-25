@@ -11,3 +11,7 @@ type changeScreenBoards struct {
 
 type newBoard struct {
 }
+
+type boardUpdated struct {
+
+}

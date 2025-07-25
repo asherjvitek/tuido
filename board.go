@@ -22,9 +22,17 @@ type board struct {
 	selectedList int
 	selectedItem int
 	editing      bool
-	editingTitle bool
+	editField    editField
 	input        textinput.Model
 }
+
+type editField int
+
+const (
+	editItem editField = iota
+	editTitle
+	editBoard
+)
 
 type EditType int
 
@@ -86,6 +94,7 @@ func (m *board) addItem(dest int) {
 	m.input.SetValue((*m.workingItems())[m.selectedItem])
 	m.input.Focus()
 	m.editing = true
+	m.editField = editItem
 }
 
 func (m *board) deleteItem() {
@@ -118,12 +127,21 @@ func (m *board) editItem(cursorLocation EditType) {
 	}
 
 	m.editing = true
+	m.editField = editItem
 }
 
 func (m *board) editTitle() {
 	m.input.SetValue(m.workingList().title)
 	m.input.Focus()
-	m.editingTitle = true
+	m.editing = true
+	m.editField = editTitle
+}
+
+func (m *board) editBoard() {
+	m.input.SetValue(m.name)
+	m.input.Focus()
+	m.editing = true
+	m.editField = editBoard
 }
 
 func (m *board) addList() {
@@ -134,7 +152,8 @@ func (m *board) addList() {
 	})
 	m.selectedList = len(m.lists) - 1
 	m.selectedItem = 0
-	m.editingTitle = true
+	m.editing = true
+	m.editField = editTitle
 	m.input.SetValue(m.workingList().title)
 	m.input.Focus()
 }
@@ -207,22 +226,19 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.editing {
 			switch msg.String() {
-			case "esc":
+			case "esc", "enter":
 				m.input.Blur()
-				(*m.workingItems())[m.selectedItem] = m.input.Value()
+				switch m.editField {
+				case editItem:
+					(*m.workingItems())[m.selectedItem] = m.input.Value()
+				case editTitle:
+					m.workingList().title = m.input.Value()
+				case editBoard:
+					m.name = m.input.Value()
+				}
 				m.editing = false
-			default:
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
 
-				return m, cmd
-			}
-		} else if m.editingTitle {
-			switch msg.String() {
-			case "esc":
-				m.input.Blur()
-				m.workingList().title = m.input.Value()
-				m.editingTitle = false
+				return m, nil
 			default:
 				var cmd tea.Cmd
 				m.input, cmd = m.input.Update(msg)
@@ -277,8 +293,10 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.editItem(EditTypeEnd)
 			case "s", "S":
 				m.editItem(EditTypeClear)
-			case "t":
+			case "t", "T":
 				m.editTitle()
+			case "B":
+				m.editBoard()
 			case "N":
 				m.addList()
 
@@ -301,7 +319,11 @@ func (m board) View() string {
 	listLen := len(m.lists)
 
 	if listLen == 0 {
-		return boardNameStyle.Render(m.name)
+		if m.editing && m.editField == editBoard {
+			return boardNameStyle.Render(m.input.View())
+		} else {
+			return boardNameStyle.Render(m.name)
+		}
 	}
 
 	contentHeight := m.height - listStyle.GetVerticalBorderSize() - listStyle.GetVerticalMargins() - boardNameStyle.GetHeight() - boardNameStyle.GetVerticalMargins()
@@ -312,7 +334,7 @@ func (m board) View() string {
 	for li, v := range m.lists {
 		styledTitle := titleStyle.Render(v.title)
 
-		if m.editingTitle && li == m.selectedList {
+		if m.editing && m.editField == editTitle && li == m.selectedList {
 			styledTitle = titleStyle.Render(m.input.View())
 		}
 
@@ -336,7 +358,7 @@ func (m board) View() string {
 		for ii, v := range v.items {
 			var content string
 			if m.selectedList == li && m.selectedItem == ii {
-				if m.editing {
+				if m.editing && m.editField == editItem {
 					content = selectedItemStyle.Width(todoWidth).Render(m.input.View())
 				} else {
 					content = selectedItemStyle.Width(todoWidth).Render(v)
@@ -380,5 +402,12 @@ func (m board) View() string {
 			Render(text)
 	}
 
-	return lg.JoinVertical(lg.Left, boardNameStyle.Render(m.name), lg.JoinHorizontal(lg.Left, lists...))
+	board := ""
+	if m.editing && m.editField == editBoard {
+		board = boardNameStyle.Render(m.input.View())
+	} else {
+		board = boardNameStyle.Render(m.name)
+	}
+
+	return lg.JoinVertical(lg.Left, board, lg.JoinHorizontal(lg.Left, lists...))
 }
