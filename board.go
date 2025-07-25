@@ -196,25 +196,31 @@ func (m *board) navigate(itemDest int, listDest int) {
 
 var (
 	boardNameStyle = lg.NewStyle().
-			Bold(true).
-			Foreground(lg.Color("5")).
+			Foreground(lg.Color(Blue)).
+			BorderForeground(lg.Color(Blue)).
 			Height(1).
-			Margin(1, 1, 1, 1)
+			Margin(1, 1, 0, 1).
+			Border(lg.ThickBorder(), false, false, true, false)
 
 	border = lg.NewStyle().
 		Border(lg.RoundedBorder())
 
 	titleStyle = lg.NewStyle().
-			Foreground(lg.Color("5"))
+			Foreground(lg.Color(Purple))
+
+	titleContainerStyle = lg.NewStyle().
+				Border(lg.NormalBorder(), false, false, true, false).
+				Align(lg.Center)
 
 	listStyle = border.
+			MaxWidth(40).
 			Margin(0, 1, 1, 1)
 
 	selectedListStyle = listStyle.
-				BorderForeground(lg.Color("2"))
+				BorderForeground(lg.Color(Green))
 
 	selectedItemStyle = border.
-				BorderForeground(lg.Color("11"))
+				BorderForeground(lg.Color(Yellow))
 )
 
 func (m board) Init() tea.Cmd {
@@ -318,6 +324,8 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m board) View() string {
 	listLen := len(m.lists)
 
+	boardNameStyle = boardNameStyle.Width(m.width - boardNameStyle.GetHorizontalFrameSize())
+
 	if listLen == 0 {
 		if m.editing && m.editField == editBoard {
 			return boardNameStyle.Render(m.input.View())
@@ -326,9 +334,12 @@ func (m board) View() string {
 		}
 	}
 
-	contentHeight := m.height - listStyle.GetVerticalBorderSize() - listStyle.GetVerticalMargins() - boardNameStyle.GetHeight() - boardNameStyle.GetVerticalMargins()
-	listWidth := (m.width - (listStyle.GetHorizontalBorderSize()+listStyle.GetHorizontalMargins())*listLen) / listLen
-	todoWidth := listWidth - border.GetHorizontalBorderSize() - border.GetHorizontalPadding()
+	contentHeight := m.height - listStyle.GetHorizontalFrameSize() - boardNameStyle.GetHeight() - boardNameStyle.GetVerticalFrameSize()
+
+	listMaxWidth := listStyle.GetMaxWidth() - listStyle.GetHorizontalFrameSize()
+	listWidth := min((m.width-listStyle.GetHorizontalFrameSize()*listLen)/listLen, listMaxWidth)
+
+	todoWidth := listWidth - border.GetHorizontalFrameSize()
 
 	lists := make([]string, listLen)
 	for li, v := range m.lists {
@@ -338,13 +349,8 @@ func (m board) View() string {
 			styledTitle = titleStyle.Render(m.input.View())
 		}
 
-		title := border.
-			BorderBottom(true).
-			BorderTop(false).
-			BorderRight(false).
-			BorderLeft(false).
+		title := titleContainerStyle.
 			Width(listWidth).
-			Align(lg.Center).
 			Render(styledTitle)
 
 		titleHeight := countLines(title)
