@@ -13,21 +13,25 @@ type model struct {
 	height int
 }
 
-func (m *model) changeToBoards() (tea.Model, tea.Cmd) {
-	m.boards.height = m.height
-	m.boards.width = m.width
-
+func (m *model) updateBoardsModel() {
 	// I know that I am missing something but it would appear that the name
 	// updates are not flowing through but other updates to the screen model are.....
 	// I am sure that I could fix this another way but for now this is fine
 	switch screen := m.screen.(type) {
 	case board:
-		for i, b := range m.boards.boards {
-			if b.id == screen.id {
-				m.boards.boards[i] = screen
+		for i, b := range m.boards.Boards {
+			if b.Id == screen.Id {
+				m.boards.Boards[i] = screen
 			}
 		}
 	}
+}
+
+func (m *model) changeToBoards() (tea.Model, tea.Cmd) {
+	m.boards.height = m.height
+	m.boards.width = m.width
+
+	m.updateBoardsModel()
 
 	m.screen = m.boards
 
@@ -35,8 +39,8 @@ func (m *model) changeToBoards() (tea.Model, tea.Cmd) {
 }
 
 func (m *model) changeToBoard(msg changeScreenBoard) (tea.Model, tea.Cmd) {
-	for _, board := range m.boards.boards {
-		if board.id == msg.boardId {
+	for _, board := range m.boards.Boards {
+		if board.Id == msg.boardId {
 			board.height = m.height
 			board.width = m.width
 			m.screen = board
@@ -51,22 +55,22 @@ func (m *model) changeToBoard(msg changeScreenBoard) (tea.Model, tea.Cmd) {
 
 func (m *model) newBoard() (tea.Model, tea.Cmd) {
 	nextId := 0
-	for _, b := range m.boards.boards {
-		if nextId < b.id {
-			nextId = b.id
+	for _, b := range m.boards.Boards {
+		if nextId < b.Id {
+			nextId = b.Id
 		}
 	}
 
 	nextId++
 	newBoard := board{
-		id:     nextId,
-		name:   "New Board",
-		lists:  make([]list, 0),
+		Id:     nextId,
+		Name:   "New Board",
+		Lists:  make([]list, 0),
 		input:  getTextInput(),
 		height: m.height,
 		width:  m.width,
 	}
-	m.boards.boards = append(m.boards.boards, newBoard)
+	m.boards.Boards = append(m.boards.Boards, newBoard)
 	m.screen = newBoard
 
 	return m, nil
@@ -90,6 +94,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.changeToBoard(msg)
 	case newBoard:
 		return m.newBoard()
+	case boardUpdated:
+		m.updateBoardsModel()
+		saveData(m.boards)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -106,7 +113,7 @@ func (m model) View() string {
 }
 
 func main() {
-	boards := getBoards()
+	boards := loadData()
 	model := model{screen: boards, boards: boards}
 
 	p := tea.NewProgram(model, tea.WithAltScreen())

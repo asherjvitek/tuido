@@ -8,15 +8,15 @@ import (
 )
 
 type list struct {
-	title          string
-	items          []string
+	Title          string
+	Items          []string
 	scrollposition int
 }
 
 type board struct {
-	id           int
-	name         string
-	lists        []list
+	Id           int
+	Name         string
+	Lists        []list
 	width        int
 	height       int
 	selectedList int
@@ -43,20 +43,20 @@ const (
 )
 
 func (m board) workingList() *list {
-	return &m.lists[m.selectedList]
+	return &m.Lists[m.selectedList]
 }
 
 func (m board) workingItems() *[]string {
-	return &m.lists[m.selectedList].items
+	return &m.Lists[m.selectedList].Items
 }
 
 func (m board) workingItemsLen() int {
-	return len(m.lists[m.selectedList].items)
+	return len(m.Lists[m.selectedList].Items)
 }
 
-func (m *board) moveItemToList(dest int) {
-	if dest > len(m.lists)-1 || dest < 0 {
-		return
+func (m *board) moveItemToList(dest int) (tea.Model, tea.Cmd) {
+	if dest > len(m.Lists)-1 || dest < 0 {
+		return m, nil
 	}
 
 	a := (*m.workingItems())[m.selectedItem]
@@ -69,11 +69,13 @@ func (m *board) moveItemToList(dest int) {
 	}
 
 	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, a)
+
+	return m, saveBoard
 }
 
-func (m *board) moveItem(dest int) {
+func (m *board) moveItem(dest int) (tea.Model, tea.Cmd) {
 	if dest < 0 || dest > m.workingItemsLen() {
-		return
+		return m, nil
 	}
 
 	a := (*m.workingItems())[m.selectedItem]
@@ -83,9 +85,11 @@ func (m *board) moveItem(dest int) {
 	(*m.workingItems())[dest] = a
 
 	m.selectedItem = dest
+
+	return m, saveBoard
 }
 
-func (m *board) addItem(dest int) {
+func (m *board) addItem(dest int) (tea.Model, tea.Cmd) {
 	if dest > m.selectedItem && m.workingItemsLen() > 0 {
 		m.selectedItem = dest
 	}
@@ -95,17 +99,21 @@ func (m *board) addItem(dest int) {
 	m.input.Focus()
 	m.editing = true
 	m.editField = editItem
+
+	return m, saveBoard
 }
 
-func (m *board) deleteItem() {
+func (m *board) deleteItem() (tea.Model, tea.Cmd) {
 	if m.workingItemsLen() == 0 {
-		return
+		return m, nil
 	}
 
 	*m.workingItems() = slices.Delete(*m.workingItems(), m.selectedItem, m.selectedItem+1)
 	if m.selectedItem > 0 {
 		m.selectedItem--
 	}
+
+	return m, saveBoard
 }
 
 func (m *board) editItem(cursorLocation EditType) {
@@ -131,45 +139,47 @@ func (m *board) editItem(cursorLocation EditType) {
 }
 
 func (m *board) editTitle() {
-	m.input.SetValue(m.workingList().title)
+	m.input.SetValue(m.workingList().Title)
 	m.input.Focus()
 	m.editing = true
 	m.editField = editTitle
 }
 
 func (m *board) editBoard() {
-	m.input.SetValue(m.name)
+	m.input.SetValue(m.Name)
 	m.input.Focus()
 	m.editing = true
 	m.editField = editBoard
 }
 
 func (m *board) addList() {
-	m.lists = append(m.lists, list{
-		title:          "",
-		items:          make([]string, 0),
+	m.Lists = append(m.Lists, list{
+		Title:          "",
+		Items:          make([]string, 0),
 		scrollposition: 0,
 	})
-	m.selectedList = len(m.lists) - 1
+	m.selectedList = len(m.Lists) - 1
 	m.selectedItem = 0
 	m.editing = true
 	m.editField = editTitle
-	m.input.SetValue(m.workingList().title)
+	m.input.SetValue(m.workingList().Title)
 	m.input.Focus()
 }
 
-func (m *board) moveList(dest int) {
-	if dest < 0 || dest > len(m.lists) {
-		return
+func (m *board) moveList(dest int) (tea.Model, tea.Cmd) {
+	if dest < 0 || dest > len(m.Lists) {
+		return m, nil
 	}
 
-	a := m.lists[m.selectedList]
-	b := m.lists[dest]
+	a := m.Lists[m.selectedList]
+	b := m.Lists[dest]
 
-	m.lists[m.selectedList] = b
-	m.lists[dest] = a
+	m.Lists[m.selectedList] = b
+	m.Lists[dest] = a
 
 	m.selectedList = dest
+
+	return m, saveBoard
 }
 
 func (m *board) navigate(itemDest int, listDest int) {
@@ -183,7 +193,7 @@ func (m *board) navigate(itemDest int, listDest int) {
 	}
 
 	if listDest != m.selectedList {
-		if listDest > len(m.lists)-1 || listDest < 0 {
+		if listDest > len(m.Lists)-1 || listDest < 0 {
 			return
 		}
 
@@ -238,13 +248,13 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case editItem:
 					(*m.workingItems())[m.selectedItem] = m.input.Value()
 				case editTitle:
-					m.workingList().title = m.input.Value()
+					m.workingList().Title = m.input.Value()
 				case editBoard:
-					m.name = m.input.Value()
+					m.Name = m.input.Value()
 				}
 				m.editing = false
 
-				return m, nil
+				return m, saveBoard
 			default:
 				var cmd tea.Cmd
 				m.input, cmd = m.input.Update(msg)
@@ -266,7 +276,7 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+home":
 				m.navigate(m.selectedItem, 0)
 			case "ctrl+end":
-				m.navigate(m.selectedItem, len(m.lists)-1)
+				m.navigate(m.selectedItem, len(m.Lists)-1)
 			case "home":
 				m.navigate(0, m.selectedList)
 			case "end":
@@ -274,17 +284,17 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Moving things
 			case "shift+down", "J":
-				m.moveItem(m.selectedItem + 1)
+				return m.moveItem(m.selectedItem + 1)
 			case "shift+up", "K":
-				m.moveItem(m.selectedItem - 1)
+				return m.moveItem(m.selectedItem - 1)
 			case "shift+right", "L":
-				m.moveItemToList(m.selectedList + 1)
+				return m.moveItemToList(m.selectedList + 1)
 			case "shift+left", "H":
-				m.moveItemToList(m.selectedList - 1)
+				return m.moveItemToList(m.selectedList - 1)
 			case "alt+right", "alt+l", "alt+L":
-				m.moveList(m.selectedList + 1)
+				return m.moveList(m.selectedList + 1)
 			case "alt+left", "alt+h", "alt+H":
-				m.moveList(m.selectedList - 1)
+				return m.moveList(m.selectedList - 1)
 
 			//Editing
 			case "o":
@@ -292,7 +302,7 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "O":
 				m.addItem(m.selectedItem)
 			case "D":
-				m.deleteItem()
+				return m.deleteItem()
 			case "i", "I":
 				m.editItem(EditTypeStart)
 			case "a", "A":
@@ -322,7 +332,7 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m board) View() string {
-	listLen := len(m.lists)
+	listLen := len(m.Lists)
 
 	boardNameStyle = boardNameStyle.Width(m.width - boardNameStyle.GetHorizontalFrameSize())
 
@@ -330,7 +340,7 @@ func (m board) View() string {
 		if m.editing && m.editField == editBoard {
 			return boardNameStyle.Render(m.input.View())
 		} else {
-			return boardNameStyle.Render(m.name)
+			return boardNameStyle.Render(m.Name)
 		}
 	}
 
@@ -342,8 +352,8 @@ func (m board) View() string {
 	todoWidth := listWidth - border.GetHorizontalFrameSize()
 
 	lists := make([]string, listLen)
-	for li, v := range m.lists {
-		styledTitle := titleStyle.Render(v.title)
+	for li, v := range m.Lists {
+		styledTitle := titleStyle.Render(v.Title)
 
 		if m.editing && m.editField == editTitle && li == m.selectedList {
 			styledTitle = titleStyle.Render(m.input.View())
@@ -361,7 +371,7 @@ func (m board) View() string {
 		pageLen := 0
 		selectedPage := 0
 
-		for ii, v := range v.items {
+		for ii, v := range v.Items {
 			var content string
 			if m.selectedList == li && m.selectedItem == ii {
 				if m.editing && m.editField == editItem {
@@ -412,7 +422,7 @@ func (m board) View() string {
 	if m.editing && m.editField == editBoard {
 		board = boardNameStyle.Render(m.input.View())
 	} else {
-		board = boardNameStyle.Render(m.name)
+		board = boardNameStyle.Render(m.Name)
 	}
 
 	return lg.JoinVertical(lg.Left, board, lg.JoinHorizontal(lg.Left, lists...))

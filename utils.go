@@ -25,58 +25,18 @@ func getTextInput() textinput.Model {
 	return input
 }
 
-func getBoards() boards {
+func getDefaultBoards() boards {
 	return boards{
 		selected: 0,
-		boards: []board{
+		Boards: []board{
 			{
-				id:   1,
-				name: "Board 1",
-				lists: []list{
+				Id:   1,
+				Name: "My First Board",
+				Lists: []list{
 					{
-						title: "TODO",
-						items: []string{
+						Title: "TODO",
+						Items: []string{
 							"Thing to Do 6",
-						},
-					},
-					{
-						title: "DOING",
-						items: []string{
-							"Doing this thing 1",
-						},
-					},
-					{
-						title: "DONE",
-						items: []string{
-							"This is done 3!",
-						},
-					},
-				},
-
-				selectedList: 0,
-				selectedItem: 0,
-				input:        getTextInput(),
-			},
-			{
-				id:   2,
-				name: "Board 2",
-				lists: []list{
-					{
-						title: "TODO",
-						items: []string{
-							"Thing to Do 6",
-						},
-					},
-					{
-						title: "DOING",
-						items: []string{
-							"Doing this thing 1",
-						},
-					},
-					{
-						title: "DONE",
-						items: []string{
-							"This is done 3!",
 						},
 					},
 				},

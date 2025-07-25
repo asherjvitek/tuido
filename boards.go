@@ -22,7 +22,7 @@ var (
 )
 
 type boards struct {
-	boards   []board
+	Boards   []board
 	selected int
 	width    int
 	height   int
@@ -39,7 +39,7 @@ func (m boards) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			var cmd tea.Cmd
 			cmd = func() tea.Msg {
-				return changeScreenBoard { boardId: m.boards[m.selected].id }
+				return changeScreenBoard { boardId: m.Boards[m.selected].Id }
 			}
 			return m, cmd
 		case "N":
@@ -49,7 +49,7 @@ func (m boards) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, cmd
 		case "right", "l":
-			if m.selected == len(m.boards)-1 {
+			if m.selected == len(m.Boards)-1 {
 				break
 			}
 
@@ -71,13 +71,13 @@ func (m boards) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m boards) View() string {
 
-	text := make([]string, len(m.boards))
+	text := make([]string, len(m.Boards))
 
-	for i, b := range m.boards {
+	for i, b := range m.Boards {
 		if i == m.selected {
-			text[i] = selectedStyle.Render(b.name)
+			text[i] = selectedStyle.Render(b.Name)
 		} else {
-			text[i] = boardStyle.Render(b.name)
+			text[i] = boardStyle.Render(b.Name)
 		}
 	}
 
