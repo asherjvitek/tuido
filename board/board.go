@@ -6,8 +6,8 @@ import (
 	lg "github.com/charmbracelet/lipgloss"
 	"slices"
 	"tuido/commands"
-	"tuido/util"
 	"tuido/style"
+	"tuido/util"
 )
 
 type List struct {
@@ -52,8 +52,7 @@ func New(id int) Model {
 		Lists: []List{
 			{
 				Title: "New List",
-				Items: []string{
-				},
+				Items: []string{},
 			},
 		},
 
@@ -233,6 +232,29 @@ func (m *Model) navigate(itemDest int, listDest int) {
 	}
 }
 
+func (m Model) handleEditing(msg tea.KeyMsg) (Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.input.Blur()
+		switch m.editField {
+		case editItem:
+			(*m.workingItems())[m.selectedItem] = m.input.Value()
+		case editTitle:
+			m.workingList().Title = m.input.Value()
+		case editBoard:
+			m.Name = m.input.Value()
+		}
+		m.editing = false
+
+		return m, commands.SaveBoard
+	default:
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+
+		return m, cmd
+	}
+}
+
 var (
 	boardNameStyle = lg.NewStyle().
 			Foreground(lg.Color(style.Blue)).
@@ -270,86 +292,67 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.editing {
-			switch msg.String() {
-			case "esc", "enter":
-				m.input.Blur()
-				switch m.editField {
-				case editItem:
-					(*m.workingItems())[m.selectedItem] = m.input.Value()
-				case editTitle:
-					m.workingList().Title = m.input.Value()
-				case editBoard:
-					m.Name = m.input.Value()
-				}
-				m.editing = false
+			return m.handleEditing(msg)
+		}
 
-				return m, commands.SaveBoard
-			default:
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
+		switch msg.String() {
 
-				return m, cmd
-			}
-		} else {
-			switch msg.String() {
+		//Navigation
+		case "down", "j":
+			m.navigate(m.selectedItem+1, m.selectedList)
+		case "up", "k":
+			m.navigate(m.selectedItem-1, m.selectedList)
+		case "right", "l":
+			m.navigate(m.selectedItem, m.selectedList+1)
+		case "left", "h":
+			m.navigate(m.selectedItem, m.selectedList-1)
+		case "ctrl+home":
+			m.navigate(m.selectedItem, 0)
+		case "ctrl+end":
+			m.navigate(m.selectedItem, len(m.Lists)-1)
+		case "home":
+			m.navigate(0, m.selectedList)
+		case "end":
+			m.navigate(m.workingItemsLen()-1, m.selectedList)
 
-			//Navigation
-			case "down", "j":
-				m.navigate(m.selectedItem+1, m.selectedList)
-			case "up", "k":
-				m.navigate(m.selectedItem-1, m.selectedList)
-			case "right", "l":
-				m.navigate(m.selectedItem, m.selectedList+1)
-			case "left", "h":
-				m.navigate(m.selectedItem, m.selectedList-1)
-			case "ctrl+home":
-				m.navigate(m.selectedItem, 0)
-			case "ctrl+end":
-				m.navigate(m.selectedItem, len(m.Lists)-1)
-			case "home":
-				m.navigate(0, m.selectedList)
-			case "end":
-				m.navigate(m.workingItemsLen()-1, m.selectedList)
+		// Moving things
+		case "shift+down", "J":
+			return m.moveItem(m.selectedItem + 1)
+		case "shift+up", "K":
+			return m.moveItem(m.selectedItem - 1)
+		case "shift+right", "L":
+			return m.moveItemToList(m.selectedList + 1)
+		case "shift+left", "H":
+			return m.moveItemToList(m.selectedList - 1)
+		case "alt+right", "alt+l", "alt+L":
+			return m.moveList(m.selectedList + 1)
+		case "alt+left", "alt+h", "alt+H":
+			return m.moveList(m.selectedList - 1)
 
-			// Moving things
-			case "shift+down", "J":
-				return m.moveItem(m.selectedItem + 1)
-			case "shift+up", "K":
-				return m.moveItem(m.selectedItem - 1)
-			case "shift+right", "L":
-				return m.moveItemToList(m.selectedList + 1)
-			case "shift+left", "H":
-				return m.moveItemToList(m.selectedList - 1)
-			case "alt+right", "alt+l", "alt+L":
-				return m.moveList(m.selectedList + 1)
-			case "alt+left", "alt+h", "alt+H":
-				return m.moveList(m.selectedList - 1)
+		//Editing
+		case "o":
+			m.addItem(m.selectedItem + 1)
+		case "O":
+			m.addItem(m.selectedItem)
+		case "D":
+			return m.deleteItem()
+		case "i", "I":
+			m.editItem(EditTypeStart)
+		case "a", "A":
+			m.editItem(EditTypeEnd)
+		case "s", "S":
+			m.editItem(EditTypeClear)
+		case "t", "T":
+			m.editTitle()
+		case "B":
+			m.editBoard()
+		case "N":
+			m.addList()
 
-			//Editing
-			case "o":
-				m.addItem(m.selectedItem + 1)
-			case "O":
-				m.addItem(m.selectedItem)
-			case "D":
-				return m.deleteItem()
-			case "i", "I":
-				m.editItem(EditTypeStart)
-			case "a", "A":
-				m.editItem(EditTypeEnd)
-			case "s", "S":
-				m.editItem(EditTypeClear)
-			case "t", "T":
-				m.editTitle()
-			case "B":
-				m.editBoard()
-			case "N":
-				m.addList()
-
-			//Return to boards
-			case "b":
-				return m, func() tea.Msg {
-					return commands.ChangeScreenBoards{}
-				}
+		//Return to boards
+		case "b":
+			return m, func() tea.Msg {
+				return commands.ChangeScreenBoards{}
 			}
 		}
 	case tea.WindowSizeMsg:
