@@ -1,9 +1,10 @@
-package main
+package boards
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	lg "github.com/charmbracelet/lipgloss"
-	// "slices"
+	"tuido/commands"
+	"tuido/board"
 )
 
 var (
@@ -21,31 +22,53 @@ var (
 	selectedStyle = boardStyle.BorderForeground(lg.Color("2"))
 )
 
-type boards struct {
-	Boards   []board
+type Model struct {
+	Boards   []board.Model
 	selected int
 	width    int
 	height   int
 }
 
-func (m boards) Init() tea.Cmd {
+func (m Model) New() Model {
+	return Model{
+		Boards: []board.Model {
+			board.New(1),
+		},
+		selected: 0,
+		width: 0,
+		height: 0,
+	}
+}
+
+func (m Model) NextId() int {
+	nextId := 0
+	for _, b := range m.Boards {
+		if nextId < b.Id {
+			nextId = b.Id
+		}
+	}
+
+	return nextId + 1
+}
+
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m boards) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
 			var cmd tea.Cmd
 			cmd = func() tea.Msg {
-				return changeScreenBoard { boardId: m.Boards[m.selected].Id }
+				return commands.ChangeScreenBoard { BoardId: m.Boards[m.selected].Id }
 			}
 			return m, cmd
 		case "N":
 			var cmd tea.Cmd
 			cmd = func() tea.Msg {
-				return newBoard {}
+				return commands.NewBoard {}
 			}
 			return m, cmd
 		case "right", "l":
@@ -69,7 +92,7 @@ func (m boards) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m boards) View() string {
+func (m Model) View() string {
 
 	text := make([]string, len(m.Boards))
 

@@ -4,13 +4,24 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
+	"tuido/board"
+	"tuido/boards"
+	"tuido/commands"
+	"tuido/data"
 )
 
 type model struct {
 	screen tea.Model
-	boards boards
+	boards boards.Model
 	width  int
 	height int
+}
+
+func (m model) windowSizeMsg() tea.Msg {
+	return tea.WindowSizeMsg{
+		Height: m.height,
+		Width:  m.width,
+	}
 }
 
 func (m *model) updateBoardsModel() {
@@ -18,7 +29,7 @@ func (m *model) updateBoardsModel() {
 	// updates are not flowing through but other updates to the screen model are.....
 	// I am sure that I could fix this another way but for now this is fine
 	switch screen := m.screen.(type) {
-	case board:
+	case board.Model:
 		for i, b := range m.boards.Boards {
 			if b.Id == screen.Id {
 				m.boards.Boards[i] = screen
@@ -28,24 +39,24 @@ func (m *model) updateBoardsModel() {
 }
 
 func (m *model) changeToBoards() (tea.Model, tea.Cmd) {
-	m.boards.height = m.height
-	m.boards.width = m.width
-
 	m.updateBoardsModel()
 
 	m.screen = m.boards
 
-	return m, nil
+	return m, m.windowSizeMsg
 }
 
-func (m *model) changeToBoard(msg changeScreenBoard) (tea.Model, tea.Cmd) {
+func (m *model) changeToBoard(msg commands.ChangeScreenBoard) (tea.Model, tea.Cmd) {
 	for _, board := range m.boards.Boards {
-		if board.Id == msg.boardId {
-			board.height = m.height
-			board.width = m.width
+		if board.Id == msg.BoardId {
 			m.screen = board
 
-			return m, nil
+			return m, func() tea.Msg {
+				return tea.WindowSizeMsg{
+					Height: m.height,
+					Width:  m.width,
+				}
+			}
 		}
 	}
 
@@ -54,26 +65,11 @@ func (m *model) changeToBoard(msg changeScreenBoard) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) newBoard() (tea.Model, tea.Cmd) {
-	nextId := 0
-	for _, b := range m.boards.Boards {
-		if nextId < b.Id {
-			nextId = b.Id
-		}
-	}
-
-	nextId++
-	newBoard := board{
-		Id:     nextId,
-		Name:   "New Board",
-		Lists:  make([]list, 0),
-		input:  getTextInput(),
-		height: m.height,
-		width:  m.width,
-	}
+	newBoard := board.New(m.boards.NextId())
 	m.boards.Boards = append(m.boards.Boards, newBoard)
 	m.screen = newBoard
 
-	return m, nil
+	return m, m.windowSizeMsg
 }
 
 func (m model) Init() tea.Cmd {
@@ -88,15 +84,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC.String(), "q":
 			return m, tea.Quit
 		}
-	case changeScreenBoards:
+	case commands.ChangeScreenBoards:
 		return m.changeToBoards()
-	case changeScreenBoard:
+	case commands.ChangeScreenBoard:
 		return m.changeToBoard(msg)
-	case newBoard:
+	case commands.NewBoard:
 		return m.newBoard()
-	case boardUpdated:
+	case commands.BoardUpdated:
 		m.updateBoardsModel()
-		saveData(m.boards)
+		data.SaveData(m.boards)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -113,7 +109,7 @@ func (m model) View() string {
 }
 
 func main() {
-	boards := loadData()
+	boards := data.LoadData()
 	model := model{screen: boards, boards: boards}
 
 	p := tea.NewProgram(model, tea.WithAltScreen())

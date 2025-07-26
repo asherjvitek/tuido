@@ -1,22 +1,25 @@
-package main
+package board
 
 import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	lg "github.com/charmbracelet/lipgloss"
 	"slices"
+	"tuido/commands"
+	"tuido/util"
+	"tuido/style"
 )
 
-type list struct {
+type List struct {
 	Title          string
 	Items          []string
 	scrollposition int
 }
 
-type board struct {
+type Model struct {
 	Id           int
 	Name         string
-	Lists        []list
+	Lists        []List
 	width        int
 	height       int
 	selectedList int
@@ -42,19 +45,41 @@ const (
 	EditTypeClear
 )
 
-func (m board) workingList() *list {
+func New(id int) Model {
+	return Model{
+		Id:   id,
+		Name: "New Board",
+		Lists: []List{
+			{
+				Title: "New List",
+				Items: []string{
+				},
+			},
+		},
+
+		selectedList: 0,
+		selectedItem: 0,
+		input:        util.GetTextInput(),
+	}
+}
+
+func (m *Model) Setup() {
+	m.input = util.GetTextInput()
+}
+
+func (m Model) workingList() *List {
 	return &m.Lists[m.selectedList]
 }
 
-func (m board) workingItems() *[]string {
+func (m Model) workingItems() *[]string {
 	return &m.Lists[m.selectedList].Items
 }
 
-func (m board) workingItemsLen() int {
+func (m Model) workingItemsLen() int {
 	return len(m.Lists[m.selectedList].Items)
 }
 
-func (m *board) moveItemToList(dest int) (tea.Model, tea.Cmd) {
+func (m *Model) moveItemToList(dest int) (tea.Model, tea.Cmd) {
 	if dest > len(m.Lists)-1 || dest < 0 {
 		return m, nil
 	}
@@ -70,10 +95,10 @@ func (m *board) moveItemToList(dest int) (tea.Model, tea.Cmd) {
 
 	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, a)
 
-	return m, saveBoard
+	return m, commands.SaveBoard
 }
 
-func (m *board) moveItem(dest int) (tea.Model, tea.Cmd) {
+func (m *Model) moveItem(dest int) (tea.Model, tea.Cmd) {
 	if dest < 0 || dest > m.workingItemsLen() {
 		return m, nil
 	}
@@ -86,12 +111,16 @@ func (m *board) moveItem(dest int) (tea.Model, tea.Cmd) {
 
 	m.selectedItem = dest
 
-	return m, saveBoard
+	return m, commands.SaveBoard
 }
 
-func (m *board) addItem(dest int) (tea.Model, tea.Cmd) {
+func (m *Model) addItem(dest int) (tea.Model, tea.Cmd) {
 	if dest > m.selectedItem && m.workingItemsLen() > 0 {
 		m.selectedItem = dest
+	}
+
+	if m.selectedItem < 0 {
+		m.selectedItem = 0
 	}
 
 	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, "")
@@ -100,10 +129,10 @@ func (m *board) addItem(dest int) (tea.Model, tea.Cmd) {
 	m.editing = true
 	m.editField = editItem
 
-	return m, saveBoard
+	return m, commands.SaveBoard
 }
 
-func (m *board) deleteItem() (tea.Model, tea.Cmd) {
+func (m *Model) deleteItem() (tea.Model, tea.Cmd) {
 	if m.workingItemsLen() == 0 {
 		return m, nil
 	}
@@ -113,10 +142,10 @@ func (m *board) deleteItem() (tea.Model, tea.Cmd) {
 		m.selectedItem--
 	}
 
-	return m, saveBoard
+	return m, commands.SaveBoard
 }
 
-func (m *board) editItem(cursorLocation EditType) {
+func (m *Model) editItem(cursorLocation EditType) {
 	if m.workingItemsLen() == 0 {
 		return
 	}
@@ -138,22 +167,22 @@ func (m *board) editItem(cursorLocation EditType) {
 	m.editField = editItem
 }
 
-func (m *board) editTitle() {
+func (m *Model) editTitle() {
 	m.input.SetValue(m.workingList().Title)
 	m.input.Focus()
 	m.editing = true
 	m.editField = editTitle
 }
 
-func (m *board) editBoard() {
+func (m *Model) editBoard() {
 	m.input.SetValue(m.Name)
 	m.input.Focus()
 	m.editing = true
 	m.editField = editBoard
 }
 
-func (m *board) addList() {
-	m.Lists = append(m.Lists, list{
+func (m *Model) addList() {
+	m.Lists = append(m.Lists, List{
 		Title:          "",
 		Items:          make([]string, 0),
 		scrollposition: 0,
@@ -166,7 +195,7 @@ func (m *board) addList() {
 	m.input.Focus()
 }
 
-func (m *board) moveList(dest int) (tea.Model, tea.Cmd) {
+func (m *Model) moveList(dest int) (tea.Model, tea.Cmd) {
 	if dest < 0 || dest > len(m.Lists) {
 		return m, nil
 	}
@@ -179,10 +208,10 @@ func (m *board) moveList(dest int) (tea.Model, tea.Cmd) {
 
 	m.selectedList = dest
 
-	return m, saveBoard
+	return m, commands.SaveBoard
 }
 
-func (m *board) navigate(itemDest int, listDest int) {
+func (m *Model) navigate(itemDest int, listDest int) {
 
 	if itemDest != m.selectedItem {
 		if itemDest > m.workingItemsLen()-1 || itemDest < 0 {
@@ -206,8 +235,8 @@ func (m *board) navigate(itemDest int, listDest int) {
 
 var (
 	boardNameStyle = lg.NewStyle().
-			Foreground(lg.Color(Blue)).
-			BorderForeground(lg.Color(Blue)).
+			Foreground(lg.Color(style.Blue)).
+			BorderForeground(lg.Color(style.Blue)).
 			Height(1).
 			Margin(1, 1, 0, 1).
 			Border(lg.ThickBorder(), false, false, true, false)
@@ -216,7 +245,7 @@ var (
 		Border(lg.RoundedBorder())
 
 	titleStyle = lg.NewStyle().
-			Foreground(lg.Color(Purple))
+			Foreground(lg.Color(style.Purple))
 
 	titleContainerStyle = lg.NewStyle().
 				Border(lg.NormalBorder(), false, false, true, false).
@@ -227,17 +256,17 @@ var (
 			Margin(0, 1, 1, 1)
 
 	selectedListStyle = listStyle.
-				BorderForeground(lg.Color(Green))
+				BorderForeground(lg.Color(style.Green))
 
 	selectedItemStyle = border.
-				BorderForeground(lg.Color(Yellow))
+				BorderForeground(lg.Color(style.Yellow))
 )
 
-func (m board) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.editing {
@@ -254,7 +283,7 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.editing = false
 
-				return m, saveBoard
+				return m, commands.SaveBoard
 			default:
 				var cmd tea.Cmd
 				m.input, cmd = m.input.Update(msg)
@@ -319,7 +348,7 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//Return to boards
 			case "b":
 				return m, func() tea.Msg {
-					return changeScreenBoards{}
+					return commands.ChangeScreenBoards{}
 				}
 			}
 		}
@@ -331,7 +360,7 @@ func (m board) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m board) View() string {
+func (m Model) View() string {
 	listLen := len(m.Lists)
 
 	boardNameStyle = boardNameStyle.Width(m.width - boardNameStyle.GetHorizontalFrameSize())
@@ -363,7 +392,7 @@ func (m board) View() string {
 			Width(listWidth).
 			Render(styledTitle)
 
-		titleHeight := countLines(title)
+		titleHeight := util.CountLines(title)
 
 		pages := make([][]string, 1)
 		pages[0] = make([]string, 0)
@@ -383,7 +412,7 @@ func (m board) View() string {
 				content = border.Width(todoWidth).Render(v)
 			}
 
-			itemHeight := countLines(content)
+			itemHeight := util.CountLines(content)
 			if pageLen+itemHeight+titleHeight > contentHeight {
 				pages = append(pages, make([]string, 1))
 				pageIndex++

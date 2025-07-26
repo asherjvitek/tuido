@@ -1,4 +1,4 @@
-package main
+package data
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"errors"
 	"path/filepath"
+	"tuido/boards"
 )
 
 // This is the first pass at something comepletely simple and naive but it should get persistence and loading.
@@ -22,13 +23,9 @@ func getDir() string {
 	return user.HomeDir
 }
 
-func saveData(boards boards) {
+func SaveData(boards boards.Model) {
 
 	jsonData, err := json.Marshal(boards)
-
-	data := string(jsonData)
-
-	print(data)
 
 	if err != nil {
 		panic("Something broke with the jsonData")
@@ -44,16 +41,15 @@ func saveData(boards boards) {
 	}
 }
 
-func loadData() boards {
-
-	var boards boards
+func LoadData() boards.Model {
+	var boards boards.Model
 	dir := getDir()
 	path := filepath.Join(dir, name)
 	data, err := os.ReadFile(path)
 
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return getDefaultBoards()
+			return boards.New()
 		}
 
 		panic(fmt.Sprintf("There was some other error trying to read the file %s\nerror: %s", path, err.Error()))
@@ -63,6 +59,11 @@ func loadData() boards {
 
 	if err != nil {
 		panic(fmt.Sprintf("Failed to Deserialize data from %s", path))
+	}
+
+	//We have to do this to make sure that everything is setup right
+	for i := range boards.Boards {
+		boards.Boards[i].Setup()
 	}
 
 	return boards
