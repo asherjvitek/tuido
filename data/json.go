@@ -2,49 +2,61 @@ package data
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/user"
-	"errors"
 	"path/filepath"
 	"tuido/boards"
 )
 
 // This is the first pass at something comepletely simple and naive but it should get persistence and loading.
-const name = "boards.json"
+const saveDir = ".tuido"
+const fileName = "boards.json"
 
-func getDir() string {
+func getPath() string {
 	user, err := user.Current()
 
 	if err != nil {
-		return os.TempDir()
+		fmt.Printf("Unable to loac the current user, err: %s", err.Error())
 	}
 
-	return user.HomeDir
+	return filepath.Join(user.HomeDir, saveDir, fileName)
 }
 
 func SaveData(boards boards.Model) {
-
 	jsonData, err := json.Marshal(boards)
 
 	if err != nil {
 		panic("Something broke with the jsonData")
 	}
 
-	dir := getDir()
-	path := filepath.Join(dir, name)
+	path := getPath()
+	dir := filepath.Dir(path)
+
+	_, err = os.Stat(dir)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			panic(fmt.Sprintf("Unable to create dir %s, err %s", dir, err))
+		}
+
+		err = os.Mkdir(dir, os.ModePerm)
+
+		if err != nil {
+			panic(fmt.Sprintf("Unable to loac the current user, err: %s", err.Error()))
+		}
+	}
 
 	err = os.WriteFile(path, jsonData, 0644)
 
 	if err != nil {
-		panic(fmt.Sprintf("Failed to Write file %s", path))
+		panic(fmt.Sprintf("Failed to Write file %s, err %s", path, err))
 	}
 }
 
 func LoadData() boards.Model {
 	var boards boards.Model
-	dir := getDir()
-	path := filepath.Join(dir, name)
+	path := getPath()
 	data, err := os.ReadFile(path)
 
 	if err != nil {
