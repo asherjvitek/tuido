@@ -9,13 +9,30 @@ type ChangeScreenBoard struct {
 	BoardId int
 }
 
+func ChangeScreenBoardCmd(boardId int) tea.Cmd {
+	return func() tea.Msg {
+		return ChangeScreenBoard{BoardId: boardId}
+	}
+}
+
 // Used to change back to the main boards page
-type ChangeScreenBoards struct{}
+type ChangeScreenBoards struct{ CurrentBoardId int }
+
+func ChangeScreenBoardsCmd(boardId int) tea.Cmd {
+	return func() tea.Msg {
+		return ChangeScreenBoards{CurrentBoardId: boardId}
+	}
+}
+
 
 type NewBoard struct{}
 
-type BoardUpdated struct{}
+func NewBoardMsg() tea.Msg {
+	return NewBoard{}
+}
 
-func SaveBoard() tea.Msg {
-	return BoardUpdated{}
+type SaveData struct{}
+
+func SaveDataMsg() tea.Msg {
+	return SaveData{}
 }

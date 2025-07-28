@@ -95,7 +95,7 @@ func (m *Model) moveItemToList(dest int) (tea.Model, tea.Cmd) {
 
 	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, a)
 
-	return m, commands.SaveBoard
+	return m, commands.SaveDataMsg
 }
 
 func (m *Model) moveItem(dest int) (tea.Model, tea.Cmd) {
@@ -111,7 +111,7 @@ func (m *Model) moveItem(dest int) (tea.Model, tea.Cmd) {
 
 	m.selectedItem = dest
 
-	return m, commands.SaveBoard
+	return m, commands.SaveDataMsg
 }
 
 func (m *Model) addItem(dest int) (tea.Model, tea.Cmd) {
@@ -142,7 +142,7 @@ func (m *Model) deleteItem() (tea.Model, tea.Cmd) {
 		m.selectedItem--
 	}
 
-	return m, commands.SaveBoard
+	return m, commands.SaveDataMsg
 }
 
 func (m *Model) deleteList() (tea.Model, tea.Cmd) {
@@ -155,7 +155,7 @@ func (m *Model) deleteList() (tea.Model, tea.Cmd) {
 		m.selectedList--
 	}
 
-	return m, commands.SaveBoard
+	return m, commands.SaveDataMsg
 }
 
 func (m *Model) editItem(cursorLocation EditType) {
@@ -221,7 +221,7 @@ func (m *Model) moveList(dest int) (tea.Model, tea.Cmd) {
 
 	m.selectedList = dest
 
-	return m, commands.SaveBoard
+	return m, commands.SaveDataMsg
 }
 
 func (m *Model) navigate(itemDest int, listDest int) {
@@ -273,7 +273,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Name = m.input.Value()
 		}
 
-		return m, commands.SaveBoard
+		return m, commands.SaveDataMsg
 	default:
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
@@ -380,9 +380,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		//Return to boards
 		case "b":
-			return m, func() tea.Msg {
-				return commands.ChangeScreenBoards{}
-			}
+			return m, commands.ChangeScreenBoardCmd(m.Id)
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width

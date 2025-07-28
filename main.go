@@ -38,9 +38,14 @@ func (m *model) updateBoardsModel() {
 	}
 }
 
-func (m *model) changeToBoards() (tea.Model, tea.Cmd) {
+func (m *model) changeToBoards(boardId int) (tea.Model, tea.Cmd) {
 	m.updateBoardsModel()
 
+	for i, v := range m.boards.Boards {
+		if v.Id == boardId {
+			m.boards.Selected = i
+		}
+	}
 	m.screen = m.boards
 
 	return m, m.windowSizeMsg
@@ -90,12 +95,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case commands.ChangeScreenBoards:
-		return m.changeToBoards()
+		return m.changeToBoards(msg.CurrentBoardId)
 	case commands.ChangeScreenBoard:
 		return m.changeToBoard(msg)
 	case commands.NewBoard:
 		return m.newBoard()
-	case commands.BoardUpdated:
+	case commands.SaveData:
 		m.updateBoardsModel()
 		data.SaveData(m.boards)
 	case tea.WindowSizeMsg:
