@@ -80,6 +80,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
+		s, ok := m.screen.(board.Model)
+		if ok && s.Editing {
+			break
+		}
+
 		switch msg.String() {
 		case tea.KeyCtrlC.String(), "q":
 			return m, tea.Quit

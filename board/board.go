@@ -24,7 +24,7 @@ type Model struct {
 	height       int
 	selectedList int
 	selectedItem int
-	editing      bool
+	Editing      bool
 	editField    editField
 	input        textinput.Model
 }
@@ -125,10 +125,10 @@ func (m *Model) addItem(dest int) (tea.Model, tea.Cmd) {
 	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, "")
 	m.input.SetValue((*m.workingItems())[m.selectedItem])
 	m.input.Focus()
-	m.editing = true
+	m.Editing = true
 	m.editField = editItem
 
-	return m, commands.SaveBoard
+	return m, nil
 }
 
 func (m *Model) deleteItem() (tea.Model, tea.Cmd) {
@@ -162,21 +162,21 @@ func (m *Model) editItem(cursorLocation EditType) {
 		m.input.SetValue("")
 	}
 
-	m.editing = true
+	m.Editing = true
 	m.editField = editItem
 }
 
 func (m *Model) editTitle() {
 	m.input.SetValue(m.workingList().Title)
 	m.input.Focus()
-	m.editing = true
+	m.Editing = true
 	m.editField = editTitle
 }
 
 func (m *Model) editBoard() {
 	m.input.SetValue(m.Name)
 	m.input.Focus()
-	m.editing = true
+	m.Editing = true
 	m.editField = editBoard
 }
 
@@ -188,7 +188,7 @@ func (m *Model) addList() {
 	})
 	m.selectedList = len(m.Lists) - 1
 	m.selectedItem = 0
-	m.editing = true
+	m.Editing = true
 	m.editField = editTitle
 	m.input.SetValue(m.workingList().Title)
 	m.input.Focus()
@@ -244,7 +244,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (Model, tea.Cmd) {
 		case editBoard:
 			m.Name = m.input.Value()
 		}
-		m.editing = false
+		m.Editing = false
 
 		return m, commands.SaveBoard
 	default:
@@ -291,7 +291,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.editing {
+		if m.Editing {
 			return m.handleEditing(msg)
 		}
 
@@ -369,7 +369,7 @@ func (m Model) View() string {
 	boardNameStyle = boardNameStyle.Width(m.width - boardNameStyle.GetHorizontalFrameSize())
 
 	if listLen == 0 {
-		if m.editing && m.editField == editBoard {
+		if m.Editing && m.editField == editBoard {
 			return boardNameStyle.Render(m.input.View())
 		} else {
 			return boardNameStyle.Render(m.Name)
@@ -387,7 +387,7 @@ func (m Model) View() string {
 	for li, v := range m.Lists {
 		styledTitle := titleStyle.Render(v.Title)
 
-		if m.editing && m.editField == editTitle && li == m.selectedList {
+		if m.Editing && m.editField == editTitle && li == m.selectedList {
 			styledTitle = titleStyle.Render(m.input.View())
 		}
 
@@ -406,7 +406,7 @@ func (m Model) View() string {
 		for ii, v := range v.Items {
 			var content string
 			if m.selectedList == li && m.selectedItem == ii {
-				if m.editing && m.editField == editItem {
+				if m.Editing && m.editField == editItem {
 					content = selectedItemStyle.Width(todoWidth).Render(m.input.View())
 				} else {
 					content = selectedItemStyle.Width(todoWidth).Render(v)
@@ -451,7 +451,7 @@ func (m Model) View() string {
 	}
 
 	board := ""
-	if m.editing && m.editField == editBoard {
+	if m.Editing && m.editField == editBoard {
 		board = boardNameStyle.Render(m.input.View())
 	} else {
 		board = boardNameStyle.Render(m.Name)
