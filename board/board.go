@@ -5,6 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	lg "github.com/charmbracelet/lipgloss"
 	"slices"
+	"strings"
 	"tuido/commands"
 	"tuido/style"
 	"tuido/util"
@@ -79,7 +80,7 @@ func (m Model) workingItemsLen() int {
 }
 
 func (m *Model) moveItemToList(dest int) (tea.Model, tea.Cmd) {
-	if dest > len(m.Lists)-1 || dest < 0 {
+	if dest > len(m.Lists)-1 || dest < 0 || m.workingItemsLen() == 0 {
 		return m, nil
 	}
 
@@ -98,7 +99,7 @@ func (m *Model) moveItemToList(dest int) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) moveItem(dest int) (tea.Model, tea.Cmd) {
-	if dest < 0 || dest > m.workingItemsLen() {
+	if dest < 0 || dest > m.workingItemsLen()-1 {
 		return m, nil
 	}
 
@@ -139,6 +140,19 @@ func (m *Model) deleteItem() (tea.Model, tea.Cmd) {
 	*m.workingItems() = slices.Delete(*m.workingItems(), m.selectedItem, m.selectedItem+1)
 	if m.selectedItem > 0 {
 		m.selectedItem--
+	}
+
+	return m, commands.SaveBoard
+}
+
+func (m *Model) deleteList() (tea.Model, tea.Cmd) {
+	if len(m.Lists) == 0 {
+		return m, nil
+	}
+
+	m.Lists = slices.Delete(m.Lists, m.selectedList, m.selectedList+1)
+	if m.selectedList > 0 {
+		m.selectedList--
 	}
 
 	return m, commands.SaveBoard
@@ -195,7 +209,7 @@ func (m *Model) addList() {
 }
 
 func (m *Model) moveList(dest int) (tea.Model, tea.Cmd) {
-	if dest < 0 || dest > len(m.Lists) {
+	if dest < 0 || dest > len(m.Lists)-1 {
 		return m, nil
 	}
 
@@ -230,21 +244,34 @@ func (m *Model) navigate(itemDest int, listDest int) {
 			m.selectedItem = m.workingItemsLen() - 1
 		}
 	}
+
+	m.selectedItem = max(m.selectedItem, 0)
 }
 
-func (m Model) handleEditing(msg tea.KeyMsg) (Model, tea.Cmd) {
-	switch msg.String() {
+func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	string := msg.String()
+	switch string {
 	case "esc", "enter":
 		m.input.Blur()
+		m.Editing = false
+
 		switch m.editField {
 		case editItem:
+			value := m.input.Value()
+			if len(strings.Trim(value, " ")) == 0 {
+				return m.deleteItem()
+			}
+
 			(*m.workingItems())[m.selectedItem] = m.input.Value()
+
+			if string == "enter" {
+				return m.addItem(m.selectedItem + 1)
+			}
 		case editTitle:
 			m.workingList().Title = m.input.Value()
 		case editBoard:
 			m.Name = m.input.Value()
 		}
-		m.Editing = false
 
 		return m, commands.SaveBoard
 	default:
@@ -334,7 +361,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.addItem(m.selectedItem + 1)
 		case "O":
 			m.addItem(m.selectedItem)
-		case "D":
+		case "d":
 			return m.deleteItem()
 		case "i", "I":
 			m.editItem(EditTypeStart)
@@ -348,6 +375,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.editBoard()
 		case "N":
 			m.addList()
+		case "D":
+			return m.deleteList()
 
 		//Return to boards
 		case "b":
