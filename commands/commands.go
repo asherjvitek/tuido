@@ -4,26 +4,30 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type ErrorMsg struct {
+	Error error
+}
+
 // Used to change to which board that you would like to be on
 type ChangeScreenBoard struct {
 	BoardId int
+	Name string
 }
 
-func ChangeScreenBoardCmd(boardId int) tea.Cmd {
+func ChangeScreenBoardCmd(boardId int, name string) tea.Cmd {
 	return func() tea.Msg {
-		return ChangeScreenBoard{BoardId: boardId}
+		return ChangeScreenBoard{BoardId: boardId, Name: name}
 	}
 }
 
 // Used to change back to the main boards page
-type ChangeScreenBoards struct{ CurrentBoardId int }
+type ChangeScreenBoardsMsg struct{ CurrentBoardId int }
 
 func ChangeScreenBoardsCmd(boardId int) tea.Cmd {
 	return func() tea.Msg {
-		return ChangeScreenBoards{CurrentBoardId: boardId}
+		return ChangeScreenBoardsMsg{CurrentBoardId: boardId}
 	}
 }
-
 
 type NewBoard struct{}
 
@@ -36,3 +40,4 @@ type SaveData struct{}
 func SaveDataMsg() tea.Msg {
 	return SaveData{}
 }
+
