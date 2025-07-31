@@ -380,7 +380,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		//Return to boards
 		case "b":
-			return m, commands.ChangeScreenBoardCmd(m.Id)
+			return m, commands.ChangeScreenBoardsCmd(m.Id)
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
