@@ -1,32 +1,28 @@
 package board
 
 import (
-	"slices"
-	"strings"
-	"tuido/commands"
-	"tuido/data"
-	"tuido/style"
-	"tuido/util"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	lg "github.com/charmbracelet/lipgloss"
+	"slices"
+	"strings"
+	"tuido/commands"
+	"tuido/style"
+	"tuido/util"
 )
 
 type List struct {
-	Id             int
 	Title          string
-	Position       int
 	Items          []string
+	scrollposition int
 }
 
 type Model struct {
 	Id           int
 	Name         string
-	Lists        []data.List
-	Position     int
-	Width        int
-	Height       int
+	Lists        []List
+	width        int
+	height       int
 	selectedList int
 	selectedItem int
 	Editing      bool
@@ -54,10 +50,10 @@ func New(id int) Model {
 	return Model{
 		Id:   id,
 		Name: "New Board",
-		Lists: []data.List{
+		Lists: []List{
 			{
 				Title: "New List",
-				Items: []data.Item{},
+				Items: []string{},
 			},
 		},
 
@@ -67,15 +63,15 @@ func New(id int) Model {
 	}
 }
 
-// func (m *Model) Setup() {
-// 	m.input = util.GetTextInput()
-// }
+func (m *Model) Setup() {
+	m.input = util.GetTextInput()
+}
 
-func (m Model) workingList() *data.List {
+func (m Model) workingList() *List {
 	return &m.Lists[m.selectedList]
 }
 
-func (m Model) workingItems() *[]data.Item {
+func (m Model) workingItems() *[]string {
 	return &m.Lists[m.selectedList].Items
 }
 
@@ -127,8 +123,8 @@ func (m *Model) addItem(dest int) (tea.Model, tea.Cmd) {
 		m.selectedItem = 0
 	}
 
-	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, data.Item{Id: 0, Text: "", Position: dest, ListId: m.workingList().Id})
-	m.input.SetValue((*m.workingItems())[m.selectedItem].Text)
+	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, "")
+	m.input.SetValue((*m.workingItems())[m.selectedItem])
 	m.input.Focus()
 	m.Editing = true
 	m.editField = editItem
@@ -154,10 +150,6 @@ func (m *Model) deleteList() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	list := m.workingList()
-
-	data.DeleteList(list.Id);
-
 	m.Lists = slices.Delete(m.Lists, m.selectedList, m.selectedList+1)
 	if m.selectedList > 0 {
 		m.selectedList--
@@ -175,10 +167,10 @@ func (m *Model) editItem(cursorLocation EditType) {
 
 	switch cursorLocation {
 	case EditTypeStart:
-		m.input.SetValue((*m.workingItems())[m.selectedItem].Text)
+		m.input.SetValue((*m.workingItems())[m.selectedItem])
 		m.input.CursorStart()
 	case EditTypeEnd:
-		m.input.SetValue((*m.workingItems())[m.selectedItem].Text)
+		m.input.SetValue((*m.workingItems())[m.selectedItem])
 		m.input.CursorEnd()
 	case EditTypeClear:
 		m.input.SetValue("")
@@ -203,9 +195,10 @@ func (m *Model) editBoard() {
 }
 
 func (m *Model) addList() {
-	m.Lists = append(m.Lists, data.List{
+	m.Lists = append(m.Lists, List{
 		Title:          "",
-		Items:          make([]data.Item, 0),
+		Items:          make([]string, 0),
+		scrollposition: 0,
 	})
 	m.selectedList = len(m.Lists) - 1
 	m.selectedItem = 0
@@ -269,7 +262,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m.deleteItem()
 			}
 
-			(*m.workingItems())[m.selectedItem].Text = m.input.Value()
+			(*m.workingItems())[m.selectedItem] = m.input.Value()
 
 			if string == "enter" {
 				return m.addItem(m.selectedItem + 1)
@@ -318,15 +311,8 @@ var (
 				BorderForeground(lg.Color(style.Yellow))
 )
 
-type boardInit struct {
-	lists []data.List
-}
-
 func (m Model) Init() tea.Cmd {
-	lists := data.GetLists(m.Id)
-	return func () tea.Msg {
-		return boardInit { lists: lists }
-	}
+	return nil
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -337,8 +323,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg.String() {
-		case tea.KeyCtrlC.String(), "q":
-			return m, tea.Quit
 
 		//Navigation
 		case "down", "j":
@@ -396,14 +380,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		//Return to boards
 		case "b":
-			return m, commands.ChangeScreenBoardsCmd(m.Id)
+			return m, commands.ChangeScreenBoardCmd(m.Id)
 		}
 	case tea.WindowSizeMsg:
-		m.Width = msg.Width
-		m.Height = msg.Height
-	case boardInit:
-		m.Lists = msg.lists
-		m.input = util.GetTextInput()
+		m.width = msg.Width
+		m.height = msg.Height
 	}
 
 	return m, nil
@@ -412,7 +393,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	listLen := len(m.Lists)
 
-	boardNameStyle = boardNameStyle.Width(m.Width - boardNameStyle.GetHorizontalFrameSize())
+	boardNameStyle = boardNameStyle.Width(m.width - boardNameStyle.GetHorizontalFrameSize())
 
 	if listLen == 0 {
 		if m.Editing && m.editField == editBoard {
@@ -422,10 +403,10 @@ func (m Model) View() string {
 		}
 	}
 
-	contentHeight := m.Height - listStyle.GetHorizontalFrameSize() - boardNameStyle.GetHeight() - boardNameStyle.GetVerticalFrameSize()
+	contentHeight := m.height - listStyle.GetHorizontalFrameSize() - boardNameStyle.GetHeight() - boardNameStyle.GetVerticalFrameSize()
 
 	listMaxWidth := listStyle.GetMaxWidth() - listStyle.GetHorizontalFrameSize()
-	listWidth := min((m.Width-listStyle.GetHorizontalFrameSize()*listLen)/listLen, listMaxWidth)
+	listWidth := min((m.width-listStyle.GetHorizontalFrameSize()*listLen)/listLen, listMaxWidth)
 
 	todoWidth := listWidth - border.GetHorizontalFrameSize()
 
@@ -455,10 +436,10 @@ func (m Model) View() string {
 				if m.Editing && m.editField == editItem {
 					content = selectedItemStyle.Width(todoWidth).Render(m.input.View())
 				} else {
-					content = selectedItemStyle.Width(todoWidth).Render(v.Text)
+					content = selectedItemStyle.Width(todoWidth).Render(v)
 				}
 			} else {
-				content = border.Width(todoWidth).Render(v.Text)
+				content = border.Width(todoWidth).Render(v)
 			}
 
 			itemHeight := util.CountLines(content)

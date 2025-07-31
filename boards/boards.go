@@ -1,14 +1,10 @@
 package boards
 
 import (
-	"fmt"
-	"slices"
-	"tuido/commands"
-	"tuido/data"
-	"tuido/util"
-
 	tea "github.com/charmbracelet/bubbletea"
 	lg "github.com/charmbracelet/lipgloss"
+	"tuido/board"
+	"tuido/commands"
 )
 
 var (
@@ -23,10 +19,21 @@ var (
 )
 
 type Model struct {
-	Boards   []data.Board
+	Boards   []board.Model
 	Selected int
-	Width    int
-	Height   int
+	width    int
+	height   int
+}
+
+func (m Model) New() Model {
+	return Model{
+		Boards: []board.Model{
+			board.New(1),
+		},
+		Selected: 0,
+		width:    0,
+		height:   0,
+	}
 }
 
 func (m Model) NextId() int {
@@ -48,112 +55,46 @@ func (m *Model) navigate(dest int) {
 	m.Selected = dest
 }
 
-func (m *Model) moveBoard(dest int) tea.Model {
+func (m *Model) moveBoard(dest int) (tea.Model, tea.Cmd) {
 	if dest < 0 || dest > len(m.Boards)-1 || len(m.Boards) == 0 {
-		return m
+		return m, nil
 	}
 
 	a := m.Boards[m.Selected]
 	b := m.Boards[dest]
-
-	a.Position = dest
-	b.Position = m.Selected
 
 	m.Boards[dest] = a
 	m.Boards[m.Selected] = b
 
 	m.Selected = dest
 
-	err := data.UpdateBoard(a)
-
-	if err != nil {
-		util.Error(fmt.Sprintf("Error updating board %d/%s", a.Id, a.Name), err)
-	}
-
-	err = data.UpdateBoard(b)
-
-	if err != nil {
-		util.Error(fmt.Sprintf("Error updating board %d/%s", a.Id, a.Name), err)
-	}
-
-	return m
-}
-
-func (m *Model) newBoard() {
-	board, err := data.NewBoard()
-
-	if err != nil {
-		util.Error("Error creating new board", err)
-	}
-
-	m.Boards = append(m.Boards, board)
-}
-
-func (m *Model) deleteBoard() {
-	if len(m.Boards) == 0 {
-		return
-	}
-
-	err := data.DeleteBoard(m.Boards[m.Selected])
-
-	if err != nil {
-		util.Error("Error deleting board", err)
-	}
-
-	m.Boards = slices.Delete(m.Boards, m.Selected, m.Selected+1)
-
-	if m.Selected >= len(m.Boards)-1 {
-		m.Selected--
-	}
-}
-
-type initMsg struct {
-	boards []data.Board
+	return m, commands.SaveDataMsg
 }
 
 func (m Model) Init() tea.Cmd {
-	return func() tea.Msg {
-		model, err := data.GetBoards()
-
-		if err != nil {
-			util.Error("Error getting boards", err)
-		}
-
-		return initMsg{boards: model}
-	}
+	return nil
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case tea.KeyCtrlC.String(), "q":
-			return m, tea.Quit
 		case "enter":
-			if len(m.Boards) == 0 {
-				return m, nil
-			}
-			
-			board := m.Boards[m.Selected]
-			return m, commands.ChangeScreenBoardCmd(board.Id, board.Name)
+			return m, commands.ChangeScreenBoardCmd(m.Boards[m.Selected].Id)
 		case "N":
-			m.newBoard()
-		case "D":
-			m.deleteBoard()
+			return m, commands.NewBoardMsg
 		case "right", "l":
 			m.navigate(m.Selected + 1)
 		case "left", "h":
 			m.navigate(m.Selected - 1)
 		case "shift+right", "L":
-			m.moveBoard(m.Selected + 1)
+			return m.moveBoard(m.Selected + 1)
 		case "shift+left", "H":
-			m.moveBoard(m.Selected - 1)
+			return m.moveBoard(m.Selected - 1)
 		}
 	case tea.WindowSizeMsg:
-		m.Width = msg.Width
-		m.Height = msg.Height
-	case initMsg:
-		m.Boards = msg.boards
+		m.width = msg.Width
+		m.height = msg.Height
 	}
 
 	return m, nil
@@ -172,8 +113,8 @@ func (m Model) View() string {
 	}
 
 	return lg.NewStyle().
-		Width(m.Width).
-		Height(m.Height).
+		Width(m.width).
+		Height(m.height).
 		AlignHorizontal(lg.Center).
 		AlignVertical(lg.Center).
 		Render(lg.JoinHorizontal(lg.Center, text...))

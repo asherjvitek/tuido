@@ -1,12 +1,7 @@
 package util
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"time"
 )
 
 // I think that there must be some better way to do this but it works for the moment.
@@ -30,21 +25,25 @@ func GetTextInput() textinput.Model {
 	return input
 }
 
-func Log(message string) {
-	// if len(os.Getenv("DEBUG")) > 0 {
-	f, err := tea.LogToFile("debug.log", "debug")
-	if err != nil {
-		fmt.Println("fatal:", err)
-		os.Exit(1)
-	}
-	defer f.Close()
-
-	date := time.Now().Format(time.DateTime)
-	fmt.Fprintf(f, "%s: %s", date, message)
-	// }
-}
-
-func Error(context string, err error) {
-	fmt.Printf("%s: %+v", context, err)
-	os.Exit(1)
-}
+// func getDefaultBoards() boards.Model {
+// 	return boards.Model{
+// 		Boards: []board.Model{
+// 			{
+// 				Id:   1,
+// 				Name: "My First Board",
+// 				Lists: []board.List{
+// 					{
+// 						Title: "TODO",
+// 						Items: []string{
+// 							"Thing to Do 6",
+// 						},
+// 					},
+// 				},
+//
+// 				selectedList: 0,
+// 				selectedItem: 0,
+// 				input:        getTextInput(),
+// 			},
+// 		},
+// 	}
+// }
