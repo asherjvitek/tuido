@@ -14,7 +14,6 @@ import (
 type List struct {
 	Title          string
 	Items          []string
-	scrollposition int
 }
 
 type Model struct {
@@ -198,7 +197,6 @@ func (m *Model) addList() {
 	m.Lists = append(m.Lists, List{
 		Title:          "",
 		Items:          make([]string, 0),
-		scrollposition: 0,
 	})
 	m.selectedList = len(m.Lists) - 1
 	m.selectedItem = 0

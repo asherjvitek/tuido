@@ -33,6 +33,8 @@ func (m *model) updateBoardsModel() {
 		for i, b := range m.boards.Boards {
 			if b.Id == screen.Id {
 				m.boards.Boards[i] = screen
+				tea.SetWindowTitle(fmt.Sprintf("tuido - %s", screen.Name))
+				return
 			}
 		}
 	}
@@ -56,14 +58,11 @@ func (m *model) changeToBoard(msg commands.ChangeScreenBoard) (tea.Model, tea.Cm
 		if board.Id == msg.BoardId {
 			m.screen = board
 
-			return m, func() tea.Msg {
-				return tea.WindowSizeMsg{
-					Height: m.height,
-					Width:  m.width,
-				}
-			}
+			return m, m.windowSizeMsg
 		}
 	}
+
+	tea.SetWindowTitle("tuido - Boards")
 
 	// should this panic or something?
 	return m, nil
