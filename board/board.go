@@ -1,29 +1,32 @@
 package board
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
+	"fmt"
 	"slices"
 	"strings"
 	"tuido/commands"
+	"tuido/data"
 	"tuido/style"
 	"tuido/util"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	lg "github.com/charmbracelet/lipgloss"
 )
 
 type List struct {
-	Title          string
-	Items          []string
+	Title string
+	Items []string
 }
 
 type Model struct {
-	Id           int
-	Name         string
-	Lists        []List
+	Board        data.Board
+	Lists        []data.List
 	width        int
 	height       int
 	selectedList int
 	selectedItem int
+	// I do not like this.... not sure if we should remove..
 	Editing      bool
 	editField    editField
 	input        textinput.Model
@@ -45,32 +48,32 @@ const (
 	EditTypeClear
 )
 
-func New(id int) Model {
-	return Model{
-		Id:   id,
-		Name: "New Board",
-		Lists: []List{
-			{
-				Title: "New List",
-				Items: []string{},
-			},
-		},
-
-		selectedList: 0,
-		selectedItem: 0,
-		input:        util.GetTextInput(),
-	}
-}
+// func New(id int) Model {
+// 	return Model{
+// 		Id:   id,
+// 		Name: "New Board",
+// 		Lists: []List{
+// 			{
+// 				Title: "New List",
+// 				Items: []string{},
+// 			},
+// 		},
+//
+// 		selectedList: 0,
+// 		selectedItem: 0,
+// 		input:        util.GetTextInput(),
+// 	}
+// }
 
 func (m *Model) Setup() {
 	m.input = util.GetTextInput()
 }
 
-func (m Model) workingList() *List {
+func (m Model) workingList() *data.List {
 	return &m.Lists[m.selectedList]
 }
 
-func (m Model) workingItems() *[]string {
+func (m Model) workingItems() *[]data.Item {
 	return &m.Lists[m.selectedList].Items
 }
 
@@ -122,8 +125,9 @@ func (m *Model) addItem(dest int) (tea.Model, tea.Cmd) {
 		m.selectedItem = 0
 	}
 
-	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, "")
-	m.input.SetValue((*m.workingItems())[m.selectedItem])
+	// TODO: need to set the position
+	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, data.Item{ Text: "" })
+	m.input.SetValue((*m.workingItems())[m.selectedItem].Text)
 	m.input.Focus()
 	m.Editing = true
 	m.editField = editItem
@@ -166,10 +170,10 @@ func (m *Model) editItem(cursorLocation EditType) {
 
 	switch cursorLocation {
 	case EditTypeStart:
-		m.input.SetValue((*m.workingItems())[m.selectedItem])
+		m.input.SetValue((*m.workingItems())[m.selectedItem].Text)
 		m.input.CursorStart()
 	case EditTypeEnd:
-		m.input.SetValue((*m.workingItems())[m.selectedItem])
+		m.input.SetValue((*m.workingItems())[m.selectedItem].Text)
 		m.input.CursorEnd()
 	case EditTypeClear:
 		m.input.SetValue("")
@@ -180,29 +184,29 @@ func (m *Model) editItem(cursorLocation EditType) {
 }
 
 func (m *Model) editTitle() {
-	m.input.SetValue(m.workingList().Title)
+	m.input.SetValue(m.workingList().Name)
 	m.input.Focus()
 	m.Editing = true
 	m.editField = editTitle
 }
 
 func (m *Model) editBoard() {
-	m.input.SetValue(m.Name)
+	m.input.SetValue(m.Board.Name)
 	m.input.Focus()
 	m.Editing = true
 	m.editField = editBoard
 }
 
 func (m *Model) addList() {
-	m.Lists = append(m.Lists, List{
-		Title:          "",
-		Items:          make([]string, 0),
+	m.Lists = append(m.Lists, data.List{
+		Name: "",
+		Items: make([]data.Item, 0),
 	})
 	m.selectedList = len(m.Lists) - 1
 	m.selectedItem = 0
 	m.Editing = true
 	m.editField = editTitle
-	m.input.SetValue(m.workingList().Title)
+	m.input.SetValue(m.workingList().Name)
 	m.input.Focus()
 }
 
@@ -260,15 +264,15 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m.deleteItem()
 			}
 
-			(*m.workingItems())[m.selectedItem] = m.input.Value()
+			(*m.workingItems())[m.selectedItem].Text = m.input.Value()
 
 			if string == "enter" {
 				return m.addItem(m.selectedItem + 1)
 			}
 		case editTitle:
-			m.workingList().Title = m.input.Value()
+			m.workingList().Name = m.input.Value()
 		case editBoard:
-			m.Name = m.input.Value()
+			m.Board.Name = m.input.Value()
 		}
 
 		return m, commands.SaveDataMsg
@@ -309,8 +313,18 @@ var (
 				BorderForeground(lg.Color(style.Yellow))
 )
 
+type initMsg []data.List
+
 func (m Model) Init() tea.Cmd {
-	return nil
+	lists, err := data.Lists(m.Board.BoardId)
+
+	if err != nil {
+		panic(fmt.Errorf("Error loading lists %w", err))
+	}
+
+	return func() tea.Msg {
+		return initMsg(lists)
+	}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -378,11 +392,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		//Return to boards
 		case "b":
-			return m, commands.ChangeScreenBoardsCmd(m.Id)
+			return m, commands.ChangeScreenBoardsCmd(m.Board.BoardId)
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+	case initMsg:
+		m.Lists = msg
+		m.input = util.GetTextInput()
 	}
 
 	return m, nil
@@ -397,7 +414,7 @@ func (m Model) View() string {
 		if m.Editing && m.editField == editBoard {
 			return boardNameStyle.Render(m.input.View())
 		} else {
-			return boardNameStyle.Render(m.Name)
+			return boardNameStyle.Render(m.Board.Name)
 		}
 	}
 
@@ -410,7 +427,7 @@ func (m Model) View() string {
 
 	lists := make([]string, listLen)
 	for li, v := range m.Lists {
-		styledTitle := titleStyle.Render(v.Title)
+		styledTitle := titleStyle.Render(v.Name)
 
 		if m.Editing && m.editField == editTitle && li == m.selectedList {
 			styledTitle = titleStyle.Render(m.input.View())
@@ -434,10 +451,10 @@ func (m Model) View() string {
 				if m.Editing && m.editField == editItem {
 					content = selectedItemStyle.Width(todoWidth).Render(m.input.View())
 				} else {
-					content = selectedItemStyle.Width(todoWidth).Render(v)
+					content = selectedItemStyle.Width(todoWidth).Render(v.Text)
 				}
 			} else {
-				content = border.Width(todoWidth).Render(v)
+				content = border.Width(todoWidth).Render(v.Text)
 			}
 
 			itemHeight := util.CountLines(content)
@@ -479,7 +496,7 @@ func (m Model) View() string {
 	if m.Editing && m.editField == editBoard {
 		board = boardNameStyle.Render(m.input.View())
 	} else {
-		board = boardNameStyle.Render(m.Name)
+		board = boardNameStyle.Render(m.Board.Name)
 	}
 
 	return lg.JoinVertical(lg.Left, board, lg.JoinHorizontal(lg.Left, lists...))

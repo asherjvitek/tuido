@@ -2,17 +2,17 @@ package main
 
 import (
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"tuido/board"
 	"tuido/boards"
 	"tuido/commands"
 	"tuido/data"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type model struct {
 	screen tea.Model
-	boards boards.Model
 	width  int
 	height int
 }
@@ -24,56 +24,20 @@ func (m model) windowSizeMsg() tea.Msg {
 	}
 }
 
-func (m *model) updateBoardsModel() {
-	// I know that I am missing something but it would appear that the name
-	// updates are not flowing through but other updates to the screen model are.....
-	// I am sure that I could fix this another way but for now this is fine
-	switch screen := m.screen.(type) {
-	case board.Model:
-		for i, b := range m.boards.Boards {
-			if b.Id == screen.Id {
-				m.boards.Boards[i] = screen
-				tea.SetWindowTitle(fmt.Sprintf("tuido - %s", screen.Name))
-				return
-			}
-		}
-	}
-}
-
 func (m *model) changeToBoards(boardId int) (tea.Model, tea.Cmd) {
-	m.updateBoardsModel()
-
-	for i, v := range m.boards.Boards {
-		if v.Id == boardId {
-			m.boards.Selected = i
-		}
-	}
-	m.screen = m.boards
-
-	return m, m.windowSizeMsg
+	return m, tea.Batch(m.screen.Init(), boards.SelectedBoardIdCmd(boardId), m.windowSizeMsg)
 }
 
 func (m *model) changeToBoard(msg commands.ChangeScreenBoard) (tea.Model, tea.Cmd) {
-	for _, board := range m.boards.Boards {
-		if board.Id == msg.BoardId {
-			m.screen = board
-
-			return m, m.windowSizeMsg
+	switch m.screen.(type) {
+	case boards.Model:
+		m.screen = board.Model{
+			Board: data.Board(msg),
 		}
+		return m, tea.Batch(m.screen.Init(), m.windowSizeMsg)
+	default:
+		panic("We should never be here as we are on the wrong screen")
 	}
-
-	tea.SetWindowTitle("tuido - Boards")
-
-	// should this panic or something?
-	return m, nil
-}
-
-func (m *model) newBoard() (tea.Model, tea.Cmd) {
-	newBoard := board.New(m.boards.NextId())
-	m.boards.Boards = append(m.boards.Boards, newBoard)
-	m.screen = newBoard
-
-	return m, m.windowSizeMsg
 }
 
 func (m model) Init() tea.Cmd {
@@ -97,11 +61,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.changeToBoards(msg.CurrentBoardId)
 	case commands.ChangeScreenBoard:
 		return m.changeToBoard(msg)
-	case commands.NewBoard:
-		return m.newBoard()
-	case commands.SaveData:
-		m.updateBoardsModel()
-		data.SaveData(m.boards)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -118,8 +77,14 @@ func (m model) View() string {
 }
 
 func main() {
-	boards := data.LoadData()
-	model := model{screen: boards, boards: boards}
+	model := model{screen: boards.Model{}}
+
+	err := data.Init()
+
+	if err != nil {
+		fmt.Printf("Something is wrong %v", err)
+		os.Exit(1)
+	}
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
 

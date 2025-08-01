@@ -2,16 +2,14 @@ package commands
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"tuido/data"
 )
 
 // Used to change to which board that you would like to be on
-type ChangeScreenBoard struct {
-	BoardId int
-}
-
-func ChangeScreenBoardCmd(boardId int) tea.Cmd {
+type ChangeScreenBoard data.Board
+func ChangeScreenBoardCmd(board data.Board) tea.Cmd {
 	return func() tea.Msg {
-		return ChangeScreenBoard{BoardId: boardId}
+		return ChangeScreenBoard(board)
 	}
 }
 

@@ -1,10 +1,12 @@
 package boards
 
 import (
+	"fmt"
+	"tuido/commands"
+	"tuido/data"
+
 	tea "github.com/charmbracelet/bubbletea"
 	lg "github.com/charmbracelet/lipgloss"
-	"tuido/board"
-	"tuido/commands"
 )
 
 var (
@@ -19,32 +21,10 @@ var (
 )
 
 type Model struct {
-	Boards   []board.Model
+	Boards   []data.Board
 	Selected int
 	width    int
 	height   int
-}
-
-func (m Model) New() Model {
-	return Model{
-		Boards: []board.Model{
-			board.New(1),
-		},
-		Selected: 0,
-		width:    0,
-		height:   0,
-	}
-}
-
-func (m Model) NextId() int {
-	nextId := 0
-	for _, b := range m.Boards {
-		if nextId < b.Id {
-			nextId = b.Id
-		}
-	}
-
-	return nextId + 1
 }
 
 func (m *Model) navigate(dest int) {
@@ -71,8 +51,61 @@ func (m *Model) moveBoard(dest int) (tea.Model, tea.Cmd) {
 	return m, commands.SaveDataMsg
 }
 
+func (m *Model) createBoard() (tea.Model, tea.Cmd) {
+	board := data.Board{
+		Name:     "New Board",
+		Position: data.GetPosition(m.Boards),
+	}
+
+	err := data.InsertBoard(&board)
+
+	if err != nil {
+		panic(fmt.Errorf("Failed to insert new board: %v", err))
+	}
+
+	list := data.List{
+		BoardId:  board.BoardId,
+		Name:     "New List",
+		Position: data.GetPosition([]data.List{}),
+	}
+
+	err = data.InsertList(&list)
+
+	if err != nil {
+		panic(fmt.Errorf("Failed to insert new list: %v", err))
+	}
+
+	item := data.Item{
+		ListId:   list.ListId,
+		Text:     "New Item",
+		Position: data.GetPosition([]data.Item{}),
+	}
+
+	err = data.InsertItem(&item)
+
+	if err != nil {
+		panic(fmt.Errorf("Failed to insert new item: %v", err))
+	}
+
+	return m, commands.ChangeScreenBoardCmd(board)
+}
+
+type initMsg []data.Board
+type selectedBoardIdMsg int
+
+func SelectedBoardIdCmd(boardId int) tea.Cmd {
+	return func() tea.Msg {
+		return selectedBoardIdMsg(boardId)
+	}
+}
+
 func (m Model) Init() tea.Cmd {
-	return nil
+	boards, err := data.Boards()
+	if err != nil {
+		panic(err)
+	}
+
+	return func() tea.Msg { return initMsg(boards) }
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -80,9 +113,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			return m, commands.ChangeScreenBoardCmd(m.Boards[m.Selected].Id)
+			return m, commands.ChangeScreenBoardCmd(m.Boards[m.Selected])
 		case "N":
-			return m, commands.NewBoardMsg
+			return m.createBoard()
 		case "right", "l":
 			m.navigate(m.Selected + 1)
 		case "left", "h":
@@ -95,6 +128,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+	case initMsg:
+		m.Boards = msg
+	case selectedBoardIdMsg:
+		boardId := int(msg)
+		for i, b := range m.Boards {
+			if b.BoardId == boardId {
+				m.Selected = i
+				break
+			}
+		}
 	}
 
 	return m, nil

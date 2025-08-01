@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"tuido/boards"
 )
 
 // This is the first pass at something comepletely simple and naive but it should get persistence and loading.
@@ -24,7 +23,7 @@ func getPath() string {
 	return filepath.Join(user.HomeDir, saveDir, fileName)
 }
 
-func SaveData(boards boards.Model) {
+func SaveData(boards any) {
 	jsonData, err := json.Marshal(boards)
 
 	if err != nil {
@@ -54,30 +53,28 @@ func SaveData(boards boards.Model) {
 	}
 }
 
-func LoadData() boards.Model {
-	var boards boards.Model
+func LoadData(boards *any) error {
 	path := getPath()
 	data, err := os.ReadFile(path)
 
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return boards.New()
+			return nil
 		}
 
-		panic(fmt.Sprintf("There was some other error trying to read the file %s\nerror: %s", path, err.Error()))
+		return fmt.Errorf("failed to read file %s, err: %w", path, err)
 	}
 
 	err = json.Unmarshal(data, &boards)
 
 	if err != nil {
-		panic(fmt.Sprintf("Failed to Deserialize data from %s", path))
+		return fmt.Errorf("Failed to Deserialize data from %s", path)
 	}
 
 	//We have to do this to make sure that everything is setup right
-	for i := range boards.Boards {
-		boards.Boards[i].Setup()
-	}
+	// for i := range boards.Boards {
+	// 	boards.Boards[i].Setup()
+	// }
 
-	return boards
-
+	return nil
 }
