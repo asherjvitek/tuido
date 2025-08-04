@@ -255,6 +255,29 @@ func UpdateBoard(board Board) error {
 	return nil
 }
 
+func DeleteBoard(board Board) error {
+	path, err := getDbPath()
+	if err != nil {
+		return err
+	}
+
+	db, err := Open(path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`
+		DELETE FROM Item WHERE ListId IN (SELECT ListId FROM List WHERE BoardId = :BoardId);
+		DELETE FROM List WHERE BoardId = :BoardId;
+		DELETE FROM Board WHERE BoardId = :BoardId;`, sql.Named("BoardId", board.BoardId))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func InsertList(list *List) error {
 	path, err := getDbPath()
 	if err != nil {
@@ -277,6 +300,31 @@ func InsertList(list *List) error {
 		if err := rows.Scan(&list.ListId); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func DeleteList(list List) error {
+	path, err := getDbPath()
+	if err != nil {
+		return err
+	}
+
+	db, err := Open(path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("DELETE FROM Item WHERE ListId = ?", list.ListId)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("DELETE FROM List WHERE ListId = ?", list.ListId)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -329,6 +377,27 @@ func InsertItem(item *Item) error {
 	return nil
 }
 
+func DeleteItem(item Item) error {
+	path, err := getDbPath()
+	if err != nil {
+		return err
+	}
+
+	db, err := Open(path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("DELETE FROM Item WHERE ItemId = ?", item.ItemId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func UpdateItem(item Item) error {
 	path, err := getDbPath()
 	if err != nil {
@@ -341,7 +410,7 @@ func UpdateItem(item Item) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("UPDATE Item SET Text = ?, Position = ? WHERE ItemId = ?", item.Text, item.Position, item.ItemId)
+	_, err = db.Exec("UPDATE Item SET ListId = ?, Text = ?, Position = ? WHERE ItemId = ?", item.ListId, item.Text, item.Position, item.ItemId)
 	if err != nil {
 		return err
 	}

@@ -21,16 +21,3 @@ func ChangeScreenBoardsCmd(boardId int) tea.Cmd {
 		return ChangeScreenBoards{CurrentBoardId: boardId}
 	}
 }
-
-
-type NewBoard struct{}
-
-func NewBoardMsg() tea.Msg {
-	return NewBoard{}
-}
-
-type SaveData struct{}
-
-func SaveDataMsg() tea.Msg {
-	return SaveData{}
-}

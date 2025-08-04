@@ -30,15 +30,11 @@ func (m *model) changeToBoards(boardId int) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) changeToBoard(msg commands.ChangeScreenBoard) (tea.Model, tea.Cmd) {
-	switch m.screen.(type) {
-	case boards.Model:
-		m.screen = board.Model{
-			Board: data.Board(msg),
-		}
-		return m, tea.Batch(m.screen.Init(), m.windowSizeMsg)
-	default:
-		panic("We should never be here as we are on the wrong screen")
+	m.screen = board.Model{
+		Board: data.Board(msg),
 	}
+
+	return m, tea.Batch(m.screen.Init(), m.windowSizeMsg)
 }
 
 func (m model) Init() tea.Cmd {
