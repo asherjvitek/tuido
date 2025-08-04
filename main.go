@@ -25,6 +25,7 @@ func (m model) windowSizeMsg() tea.Msg {
 }
 
 func (m *model) changeToBoards(boardId int) (tea.Model, tea.Cmd) {
+	m.screen = boards.Model{}
 	return m, tea.Batch(m.screen.Init(), boards.SelectedBoardIdCmd(boardId), m.windowSizeMsg)
 }
 

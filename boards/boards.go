@@ -41,32 +41,62 @@ func (m *Model) moveBoard(dest int) (tea.Model, tea.Cmd) {
 	}
 
 	a := m.Boards[m.Selected]
+	aPos := a.Position
 	b := m.Boards[dest]
+
+	a.Position = b.Position
+	b.Position = aPos
 
 	m.Boards[dest] = a
 	m.Boards[m.Selected] = b
 
 	m.Selected = dest
 
+	err := data.UpdateBoard(a)
+
+	if err != nil {
+		panic(err)
+	}
+
+
+	err = data.UpdateBoard(b)
+
+	if err != nil {
+		panic(err)
+	}
+
+
 	return m, commands.SaveDataMsg
 }
 
 func (m *Model) createBoard() (tea.Model, tea.Cmd) {
-	board := data.Board{
-		Name:     "New Board",
-		Position: data.GetPosition(m.Boards),
+	pos, err := data.GetPosition(m.Boards, len(m.Boards))
+
+	if err != nil {
+		panic(err)
 	}
 
-	err := data.InsertBoard(&board)
+	board := data.Board{
+		Name:     "New Board",
+		Position: pos,
+	}
+
+	err = data.InsertBoard(&board)
 
 	if err != nil {
 		panic(fmt.Errorf("Failed to insert new board: %v", err))
 	}
 
+	pos, err = data.GetPosition([]data.List{}, 0)
+
+	if err != nil {
+		panic(err)
+	}
+
 	list := data.List{
 		BoardId:  board.BoardId,
 		Name:     "New List",
-		Position: data.GetPosition([]data.List{}),
+		Position: pos,
 	}
 
 	err = data.InsertList(&list)
@@ -78,7 +108,7 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 	item := data.Item{
 		ListId:   list.ListId,
 		Text:     "New Item",
-		Position: data.GetPosition([]data.Item{}),
+		Position: pos,
 	}
 
 	err = data.InsertItem(&item)

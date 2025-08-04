@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -8,22 +9,34 @@ type Positional interface {
 	GetPosition() float64
 }
 
-// TODO: This is not done and I think just needs some tests
-func GetPosition[S ~[]E, E Positional](positionals S, dest int) float64 {
+const defaultPosition = math.MaxFloat64 / 2.0
+
+func GetPosition[S ~[]E, E Positional](positionals S, dest int) (float64, error) {
+	if dest < 0 {
+		return 0, fmt.Errorf("dest should never be less than 0")
+	}
+
+	if dest > len(positionals) {
+		return 0, fmt.Errorf("dest should never be > len(positionls) = %d, dest = %d", len(positionals), dest)
+	}
+
 	if len(positionals) == 0 {
-		return math.MaxFloat64 / 2.0
+		return defaultPosition, nil
 	}
 
 	if dest == 0 {
-		return positionals[dest].GetPosition() / 2
+		return positionals[dest].GetPosition() / 2, nil
 	}
 
 	if dest == len(positionals) {
-		return (positionals[dest-1].GetPosition() + math.MaxFloat64) / 2
+		pos := positionals[dest-1].GetPosition()
+		return (math.MaxFloat64 - pos) / 2 + pos, nil
 	}
 
-	return (positionals[dest - 1].GetPosition() + positionals[dest].GetPosition())/2
+	a := positionals[dest].GetPosition()
+	b := positionals[dest - 1].GetPosition()
 
+	return (a - b) / 2 + b, nil
 }
 
 type Board struct {
