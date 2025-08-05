@@ -1,8 +1,8 @@
 package board
 
 import (
-	"fmt"
 	"tuido/commands"
+	"tuido/config"
 	"tuido/data"
 	"tuido/style"
 	"tuido/util"
@@ -28,6 +28,7 @@ type Model struct {
 	Editing   bool
 	editField editField
 	input     textinput.Model
+	Config    config.Config
 }
 
 type editField int
@@ -81,7 +82,7 @@ func (m Model) Init() tea.Cmd {
 	lists, err := data.Lists(m.Board.BoardId)
 
 	if err != nil {
-		panic(fmt.Errorf("Error loading lists %w", err))
+		return commands.ErrorCmd(err)
 	}
 
 	return func() tea.Msg {

@@ -2,25 +2,28 @@ package data
 
 import (
 	"database/sql"
-	_ "modernc.org/sqlite"
+	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
+	"tuido/util"
+
+	_ "modernc.org/sqlite"
 )
 
 func getDbPath() (string, error) {
-	u, err := user.Current()
+	appDir, err := util.GetAppDir()
+
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(u.HomeDir, ".tuido", "tuido.db"), nil
+	return filepath.Join(appDir, "tuido.db"), nil
 }
 
 func Open(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open databasej %w", err)
 	}
 
 	if err = db.Ping(); err != nil {
@@ -42,7 +45,7 @@ func Init() error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		initDb = true
 		if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
-			return err
+			return fmt.Errorf("failed to create directory for database: %w", err)
 		}
 	}
 
@@ -98,14 +101,13 @@ VALUES
 	_, err = db.Exec(initDbSql, sql.Named("startingPosition", defaultPosition))
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
 	return nil
 }
 
 func Boards() ([]Board, error) {
-
 	path, err := getDbPath()
 	if err != nil {
 		return nil, err
@@ -119,7 +121,7 @@ func Boards() ([]Board, error) {
 
 	rows, err := db.Query("SELECT BoardId, Name, Position FROM Board ORDER BY Position")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query boards: %w", err)
 	}
 	defer rows.Close()
 
@@ -127,7 +129,7 @@ func Boards() ([]Board, error) {
 	for rows.Next() {
 		var b Board
 		if err := rows.Scan(&b.BoardId, &b.Name, &b.Position); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan board row: %w", err)
 		}
 		boards = append(boards, b)
 	}
@@ -150,7 +152,7 @@ func Lists(boardId int) ([]List, error) {
 
 	rows, err := db.Query("SELECT ListId, BoardId, Name, Position FROM List WHERE BoardId = ? ORDER BY Position", boardId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query lists: %w", err)
 	}
 	defer rows.Close()
 
@@ -158,7 +160,7 @@ func Lists(boardId int) ([]List, error) {
 	for rows.Next() {
 		var l List
 		if err := rows.Scan(&l.ListId, &l.BoardId, &l.Name, &l.Position); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan list row: %w", err)
 		}
 
 		items, err := Items(l.ListId)
@@ -189,7 +191,7 @@ func Items(listId int) ([]Item, error) {
 
 	rows, err := db.Query("SELECT ItemId, ListId, Text, Position FROM Item WHERE ListId = ? ORDER BY Position", listId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query items: %w", err)
 	}
 	defer rows.Close()
 
@@ -197,7 +199,7 @@ func Items(listId int) ([]Item, error) {
 	for rows.Next() {
 		var l Item
 		if err := rows.Scan(&l.ItemId, &l.ListId, &l.Text, &l.Position); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan item row: %w", err)
 		}
 		items = append(items, l)
 	}
@@ -219,13 +221,13 @@ func InsertBoard(board *Board) error {
 
 	rows, err := db.Query("INSERT INTO Board (Name, Position) VALUES (?, ?) RETURNING BoardId", board.Name, board.Position)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert board: %w", err)
 	}
 	defer rows.Close()
 
 	if rows.Next() {
 		if err := rows.Scan(&board.BoardId); err != nil {
-			return err
+			return fmt.Errorf("failed to scan board id: %w", err)
 		}
 	}
 
@@ -246,7 +248,7 @@ func UpdateBoard(board Board) error {
 
 	_, err = db.Exec("UPDATE Board SET Name = ?, Position = ? WHERE BoardId = ?", board.Name, board.Position, board.BoardId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update board: %w", err)
 	}
 
 	return nil
@@ -269,7 +271,7 @@ func DeleteBoard(board Board) error {
 		DELETE FROM List WHERE BoardId = :BoardId;
 		DELETE FROM Board WHERE BoardId = :BoardId;`, sql.Named("BoardId", board.BoardId))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete board: %w", err)
 	}
 
 	return nil
@@ -289,13 +291,13 @@ func InsertList(list *List) error {
 
 	rows, err := db.Query("INSERT INTO List (BoardId, Name, Position) VALUES (?, ?, ?) RETURNING ListId", list.BoardId, list.Name, list.Position)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert list: %w", err)
 	}
 	defer rows.Close()
 
 	if rows.Next() {
 		if err := rows.Scan(&list.ListId); err != nil {
-			return err
+			return fmt.Errorf("failed to scan list id: %w", err)
 		}
 	}
 
@@ -316,12 +318,12 @@ func DeleteList(list List) error {
 
 	_, err = db.Exec("DELETE FROM Item WHERE ListId = ?", list.ListId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete items from list: %w", err)
 	}
 
 	_, err = db.Exec("DELETE FROM List WHERE ListId = ?", list.ListId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete list: %w", err)
 	}
 
 	return nil
@@ -341,7 +343,7 @@ func UpdateList(list List) error {
 
 	_, err = db.Exec("UPDATE List SET Name = ?, Position = ? WHERE ListId = ?", list.Name, list.Position, list.ListId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update list: %w", err)
 	}
 
 	return nil
@@ -361,13 +363,13 @@ func InsertItem(item *Item) error {
 
 	rows, err := db.Query("INSERT INTO Item (ListId, Text, Position) VALUES (?, ?, ?) RETURNING ItemId", item.ListId, item.Text, item.Position)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert item: %w", err)
 	}
 	defer rows.Close()
 
 	if rows.Next() {
 		if err := rows.Scan(&item.ItemId); err != nil {
-			return err
+			return fmt.Errorf("failed to scan item id: %w", err)
 		}
 	}
 
@@ -389,7 +391,7 @@ func DeleteItem(item Item) error {
 	_, err = db.Exec("DELETE FROM Item WHERE ItemId = ?", item.ItemId)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete item: %w", err)
 	}
 
 	return nil
@@ -409,7 +411,7 @@ func UpdateItem(item Item) error {
 
 	_, err = db.Exec("UPDATE Item SET ListId = ?, Text = ?, Position = ? WHERE ItemId = ?", item.ListId, item.Text, item.Position, item.ItemId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update item: %w", err)
 	}
 
 	return nil

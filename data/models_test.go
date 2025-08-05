@@ -15,7 +15,7 @@ func TestGetPositionWhenEmpty(t *testing.T) {
 	pos, err := GetPosition(positionals, 0)
 
 	if err != nil {
-		panic(err)
+		t.Error(err)
 	}
 
 	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))
@@ -50,7 +50,7 @@ func TestGetPositionAtBeginning(t *testing.T) {
 	pos, err := GetPosition(positionals, 0)
 
 	if err != nil {
-		panic(err)
+		t.Error(err)
 	}
 
 	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))
@@ -66,7 +66,7 @@ func TestGetPositionInbetweenTwo(t *testing.T) {
 	pos, err := GetPosition(positionals, 1)
 
 	if err != nil {
-		panic(err)
+		t.Error(err)
 	}
 
 	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))
@@ -82,7 +82,7 @@ func TestGetPositionAtEnd(t *testing.T) {
 	pos, err := GetPosition(positionals, 1)
 
 	if err != nil {
-		panic(err)
+		t.Error(err)
 	}
 
 	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))

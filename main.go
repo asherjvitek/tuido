@@ -6,6 +6,7 @@ import (
 	"tuido/board"
 	"tuido/boards"
 	"tuido/commands"
+	"tuido/config"
 	"tuido/data"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +14,7 @@ import (
 
 type model struct {
 	screen tea.Model
+	config config.Config
 	width  int
 	height int
 }
@@ -58,6 +60,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.changeToBoards(msg.CurrentBoardId)
 	case commands.ChangeScreenBoard:
 		return m.changeToBoard(msg)
+	case error:
+		// Not sure what the right way to do this is yet but we will get there.
+		panic(msg)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -76,11 +81,17 @@ func (m model) View() string {
 func main() {
 	model := model{screen: boards.Model{}}
 
-	err := data.Init()
+	var err error
+	model.config, err = config.Load()
 
 	if err != nil {
-		fmt.Printf("Something is wrong %v", err)
-		os.Exit(1)
+		panic(err)
+	}
+
+	err = data.Init()
+
+	if err != nil {
+		panic(err)
 	}
 
 	p := tea.NewProgram(model, tea.WithAltScreen())

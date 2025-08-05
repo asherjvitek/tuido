@@ -5,56 +5,66 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
+	"tuido/util"
 )
 
 // This is the first pass at something comepletely simple and naive but it should get persistence and loading.
-const saveDir = ".tuido"
 const fileName = "boards.json"
 
-func getPath() string {
-	user, err := user.Current()
+func getPath() (string, error) {
+	appDir, err := util.GetAppDir()
 
 	if err != nil {
-		fmt.Printf("Unable to loac the current user, err: %s", err.Error())
+		return "", err
 	}
 
-	return filepath.Join(user.HomeDir, saveDir, fileName)
+	return filepath.Join(appDir, fileName), nil
 }
 
-func SaveData(boards any) {
+func SaveData(boards any) error {
 	jsonData, err := json.Marshal(boards)
 
 	if err != nil {
-		panic("Something broke with the jsonData")
+		return err
 	}
 
-	path := getPath()
+	path, err := getPath()
+
+	if err != nil {
+		return err
+	}
+
 	dir := filepath.Dir(path)
 
 	_, err = os.Stat(dir)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			panic(fmt.Sprintf("Unable to create dir %s, err %s", dir, err))
+			return err
 		}
 
 		err = os.Mkdir(dir, os.ModePerm)
 
 		if err != nil {
-			panic(fmt.Sprintf("Unable to loac the current user, err: %s", err.Error()))
+			return err
 		}
 	}
 
 	err = os.WriteFile(path, jsonData, 0644)
 
 	if err != nil {
-		panic(fmt.Sprintf("Failed to Write file %s, err %s", path, err))
+		return err
 	}
+
+	return nil
 }
 
 func LoadData(boards *any) error {
-	path := getPath()
+	path, err := getPath()
+
+	if err != nil {
+		return err
+	}
 	data, err := os.ReadFile(path)
 
 	if err != nil {
@@ -70,11 +80,6 @@ func LoadData(boards *any) error {
 	if err != nil {
 		return fmt.Errorf("Failed to Deserialize data from %s", path)
 	}
-
-	//We have to do this to make sure that everything is setup right
-	// for i := range boards.Boards {
-	// 	boards.Boards[i].Setup()
-	// }
 
 	return nil
 }

@@ -21,3 +21,9 @@ func ChangeScreenBoardsCmd(boardId int) tea.Cmd {
 		return ChangeScreenBoards{CurrentBoardId: boardId}
 	}
 }
+
+func ErrorCmd(err error) tea.Cmd {
+	return func() tea.Msg {
+		return err
+	}
+}

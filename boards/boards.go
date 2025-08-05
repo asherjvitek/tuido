@@ -2,6 +2,7 @@ package boards
 
 import (
 	"tuido/commands"
+	"tuido/config"
 	"tuido/data"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,13 +25,13 @@ type Model struct {
 	selected int
 	width    int
 	height   int
+	Config   config.Config
 }
-
 
 func (m Model) Init() tea.Cmd {
 	boards, err := data.Boards()
 	if err != nil {
-		panic(err)
+		return commands.ErrorCmd(err)
 	}
 
 	return func() tea.Msg { return initMsg(boards) }

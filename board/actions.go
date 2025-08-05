@@ -1,12 +1,12 @@
 package board
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
 	"slices"
 	"strings"
+	"tuido/commands"
 	"tuido/data"
-	tea "github.com/charmbracelet/bubbletea"
 )
-
 
 func (m Model) workingList() *data.List {
 	return &m.Lists[m.selectedList]
@@ -37,7 +37,7 @@ func (m *Model) moveItemToList(dest int) (tea.Model, tea.Cmd) {
 	pos, err := data.GetPosition(m.workingList().Items, m.selectedItem)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	a.Position = pos
@@ -65,13 +65,13 @@ func (m *Model) moveItem(dest int) (tea.Model, tea.Cmd) {
 	err := data.UpdateItem(a)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	err = data.UpdateItem(b)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	(*m.workingItems())[m.selectedItem] = b
@@ -91,15 +91,14 @@ func (m *Model) addItem(dest int) (tea.Model, tea.Cmd) {
 		m.selectedItem = 0
 	}
 
-
 	pos, err := data.GetPosition(*m.workingItems(), m.selectedItem)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	item := data.Item{
-		ListId: m.workingList().ListId,
+		ListId:   m.workingList().ListId,
 		Text:     "",
 		Position: pos,
 	}
@@ -124,7 +123,7 @@ func (m *Model) deleteItem() (tea.Model, tea.Cmd) {
 	err := data.DeleteItem((*m.workingItems())[m.selectedItem])
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	*m.workingItems() = slices.Delete(*m.workingItems(), m.selectedItem, m.selectedItem+1)
@@ -143,7 +142,7 @@ func (m *Model) deleteList() (tea.Model, tea.Cmd) {
 	err := data.DeleteList(*m.workingList())
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	m.Lists = slices.Delete(m.Lists, m.selectedList, m.selectedList+1)
@@ -190,11 +189,11 @@ func (m *Model) editBoard() {
 	m.editField = editBoard
 }
 
-func (m *Model) addList() {
+func (m *Model) addList() (tea.Model, tea.Cmd) {
 	pos, err := data.GetPosition(m.Lists, len(m.Lists))
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	list := data.List{
@@ -213,6 +212,8 @@ func (m *Model) addList() {
 	m.editField = editTitle
 	m.input.SetValue(m.workingList().Name)
 	m.input.Focus()
+
+	return m, nil
 }
 
 func (m *Model) moveList(dest int) (tea.Model, tea.Cmd) {
@@ -230,13 +231,13 @@ func (m *Model) moveList(dest int) (tea.Model, tea.Cmd) {
 	err := data.UpdateList(a)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	err = data.UpdateList(b)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	m.Lists[m.selectedList] = b
@@ -290,7 +291,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err := data.UpdateItem((*m.workingItems())[m.selectedItem])
 
 			if err != nil {
-				panic(err)
+				return m, commands.ErrorCmd(err)
 			}
 
 			if string == "enter" {
@@ -302,7 +303,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err := data.UpdateList(*m.workingList())
 
 			if err != nil {
-				panic(err)
+				return m, commands.ErrorCmd(err)
 			}
 		case editBoard:
 			m.Board.Name = m.input.Value()
@@ -310,7 +311,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			err := data.UpdateBoard(m.Board)
 
 			if err != nil {
-				panic(err)
+				return m, commands.ErrorCmd(err)
 			}
 		}
 
@@ -322,4 +323,3 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 }
-

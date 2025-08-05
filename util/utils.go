@@ -1,6 +1,10 @@
 package util
 
 import (
+	"fmt"
+	"os/user"
+	"path/filepath"
+
 	"github.com/charmbracelet/bubbles/textinput"
 )
 
@@ -25,25 +29,13 @@ func GetTextInput() textinput.Model {
 	return input
 }
 
-// func getDefaultBoards() boards.Model {
-// 	return boards.Model{
-// 		Boards: []board.Model{
-// 			{
-// 				Id:   1,
-// 				Name: "My First Board",
-// 				Lists: []board.List{
-// 					{
-// 						Title: "TODO",
-// 						Items: []string{
-// 							"Thing to Do 6",
-// 						},
-// 					},
-// 				},
-//
-// 				selectedList: 0,
-// 				selectedItem: 0,
-// 				input:        getTextInput(),
-// 			},
-// 		},
-// 	}
-// }
+func GetAppDir() (string, error) {
+	user, err := user.Current()
+
+	if err != nil {
+		fmt.Printf("Unable to load the current user, err: %s", err.Error())
+		return "", err
+	}
+
+	return filepath.Join(user.HomeDir, ".tuido"), nil
+}

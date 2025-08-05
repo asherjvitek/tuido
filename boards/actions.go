@@ -2,7 +2,6 @@ package boards
 
 
 import (
-	"fmt"
 	"slices"
 	"tuido/commands"
 	"tuido/data"
@@ -38,13 +37,13 @@ func (m *Model) moveBoard(dest int) (tea.Model, tea.Cmd) {
 	err := data.UpdateBoard(a)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	err = data.UpdateBoard(b)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	return m, nil
@@ -54,7 +53,7 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 	pos, err := data.GetPosition(m.Boards, len(m.Boards))
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	board := data.Board{
@@ -65,13 +64,13 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 	err = data.InsertBoard(&board)
 
 	if err != nil {
-		panic(fmt.Errorf("Failed to insert new board: %v", err))
+		return m, commands.ErrorCmd(err)
 	}
 
 	pos, err = data.GetPosition([]data.List{}, 0)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	list := data.List{
@@ -83,7 +82,7 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 	err = data.InsertList(&list)
 
 	if err != nil {
-		panic(fmt.Errorf("Failed to insert new list: %v", err))
+		return m, commands.ErrorCmd(err)
 	}
 
 	item := data.Item{
@@ -95,7 +94,7 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 	err = data.InsertItem(&item)
 
 	if err != nil {
-		panic(fmt.Errorf("Failed to insert new item: %v", err))
+		return m, commands.ErrorCmd(err)
 	}
 
 	return m, commands.ChangeScreenBoardCmd(board)
@@ -110,7 +109,7 @@ func (m Model) deleteBoard() (tea.Model, tea.Cmd) {
 	err := data.DeleteBoard(board)
 
 	if err != nil {
-		panic(err)
+		return m, commands.ErrorCmd(err)
 	}
 
 	m.Boards = slices.Delete(m.Boards, m.selected, m.selected+1)
