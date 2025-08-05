@@ -18,13 +18,12 @@ func TestGetPositionWhenEmpty(t *testing.T) {
 		panic(err)
 	}
 
-	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %.2f, got %.2f", expected, pos))
+	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))
 }
 
 func TestGetPositionLessThan0(t *testing.T) {
-	// expected := 5.0
 	positionals := []Board{
-		{BoardId: 1, Name: "Board 1", Position: 10.0},
+		{BoardId: 1, Name: "Board 1", Position: 10},
 	}
 
 	_, err := GetPosition(positionals, -1)
@@ -33,9 +32,8 @@ func TestGetPositionLessThan0(t *testing.T) {
 }
 
 func TestGetPositionGreaterThanLen(t *testing.T) {
-	// expected := 5.0
 	positionals := []Board{
-		{BoardId: 1, Name: "Board 1", Position: 10.0},
+		{BoardId: 1, Name: "Board 1", Position: 10},
 	}
 
 	_, err := GetPosition(positionals, 2)
@@ -44,9 +42,9 @@ func TestGetPositionGreaterThanLen(t *testing.T) {
 }
 
 func TestGetPositionAtBeginning(t *testing.T) {
-	expected := 5.0
+	expected := 5
 	positionals := []Board{
-		{BoardId: 1, Name: "Board 1", Position: 10.0},
+		{BoardId: 1, Name: "Board 1", Position: 10},
 	}
 
 	pos, err := GetPosition(positionals, 0)
@@ -55,14 +53,14 @@ func TestGetPositionAtBeginning(t *testing.T) {
 		panic(err)
 	}
 
-	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %.2f, got %.2f", expected, pos))
+	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))
 }
 
 func TestGetPositionInbetweenTwo(t *testing.T) {
-	expected := 15.0
+	expected := 15
 	positionals := []Board{
-		{BoardId: 1, Name: "Board 1", Position: 10.0},
-		{BoardId: 2, Name: "Board 2", Position: 20.0},
+		{BoardId: 1, Name: "Board 1", Position: 10},
+		{BoardId: 2, Name: "Board 2", Position: 20},
 	}
 
 	pos, err := GetPosition(positionals, 1)
@@ -71,14 +69,14 @@ func TestGetPositionInbetweenTwo(t *testing.T) {
 		panic(err)
 	}
 
-	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %.2f, got %.2f", expected, pos))
+	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))
 
 }
 
 func TestGetPositionAtEnd(t *testing.T) {
-	expected := (math.MaxFloat64-10.0)/2 + 10
+	expected := (math.MaxInt64-10)/2 + 10
 	positionals := []Board{
-		{BoardId: 1, Name: "Board 1", Position: 10.0},
+		{BoardId: 1, Name: "Board 1", Position: 10},
 	}
 
 	pos, err := GetPosition(positionals, 1)
@@ -87,6 +85,6 @@ func TestGetPositionAtEnd(t *testing.T) {
 		panic(err)
 	}
 
-	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %.2f, got %.2f", expected, pos))
+	assert.Equal(t, expected, pos, fmt.Sprintf("Expected position at index 0 to be %d, got %d", expected, pos))
 
 }

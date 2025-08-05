@@ -2,7 +2,6 @@ package data
 
 import (
 	"database/sql"
-	"math"
 	_ "modernc.org/sqlite"
 	"os"
 	"os/user"
@@ -61,14 +60,14 @@ func Init() error {
 CREATE TABLE IF NOT EXISTS Board (
     BoardId INTEGER PRIMARY KEY AUTOINCREMENT,
     Name TEXT,
-    Position REAL
+    Position INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS List (
     ListId INTEGER PRIMARY KEY AUTOINCREMENT,
     BoardId INTEGER,
     Name TEXT,
-    Position REAL,
+    Position INTEGER,
     FOREIGN KEY (BoardId) REFERENCES Board (BoardId)
 );
 
@@ -76,7 +75,7 @@ CREATE TABLE IF NOT EXISTS Item (
     ItemId INTEGER PRIMARY KEY AUTOINCREMENT,
     ListId INTEGER,
     Text TEXT,
-    Position REAL,
+    Position INTEGER,
     FOREIGN KEY (ListId) REFERENCES List (ListId)
 );
 
@@ -96,9 +95,7 @@ VALUES
 	(1, 'LETS GO TODO!', :startingPosition);
 	`
 
-	startingPosition := math.MaxFloat64 / 2.0
-
-	_, err = db.Exec(initDbSql, sql.Named("startingPosition", startingPosition))
+	_, err = db.Exec(initDbSql, sql.Named("startingPosition", defaultPosition))
 
 	if err != nil {
 		return err

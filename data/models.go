@@ -6,12 +6,12 @@ import (
 )
 
 type Positional interface {
-	GetPosition() float64
+	GetPosition() int
 }
 
-const defaultPosition = math.MaxFloat64 / 2.0
+const defaultPosition = math.MaxInt / 2
 
-func GetPosition[S ~[]E, E Positional](positionals S, dest int) (float64, error) {
+func GetPosition[S ~[]E, E Positional](positionals S, dest int) (int, error) {
 	if dest < 0 {
 		return 0, fmt.Errorf("dest should never be less than 0")
 	}
@@ -30,7 +30,7 @@ func GetPosition[S ~[]E, E Positional](positionals S, dest int) (float64, error)
 
 	if dest == len(positionals) {
 		pos := positionals[dest-1].GetPosition()
-		return (math.MaxFloat64 - pos) / 2 + pos, nil
+		return (math.MaxInt64 - pos) / 2 + pos, nil
 	}
 
 	a := positionals[dest].GetPosition()
@@ -42,10 +42,10 @@ func GetPosition[S ~[]E, E Positional](positionals S, dest int) (float64, error)
 type Board struct {
 	BoardId  int
 	Name     string
-	Position float64
+	Position int
 }
 
-func (b Board) GetPosition() float64 {
+func (b Board) GetPosition() int {
 	return b.Position
 }
 
@@ -53,11 +53,11 @@ type List struct {
 	ListId   int
 	BoardId  int
 	Name     string
-	Position float64
+	Position int
 	Items    []Item
 }
 
-func (b List) GetPosition() float64 {
+func (b List) GetPosition() int {
 	return b.Position
 }
 
@@ -65,9 +65,9 @@ type Item struct {
 	ItemId   int
 	ListId   int
 	Text     string
-	Position float64
+	Position int
 }
 
-func (b Item) GetPosition() float64 {
+func (b Item) GetPosition() int {
 	return b.Position
 }
