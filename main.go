@@ -1,103 +1,72 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	"tuido/board"
-	"tuido/boards"
-	"tuido/commands"
+	"tuido/app"
 	"tuido/config"
 	"tuido/data"
-
-	tea "github.com/charmbracelet/bubbletea"
+	"tuido/webapi"
 )
 
-type model struct {
-	screen tea.Model
-	config config.Config
-	width  int
-	height int
-}
-
-func (m model) windowSizeMsg() tea.Msg {
-	return tea.WindowSizeMsg{
-		Height: m.height,
-		Width:  m.width,
-	}
-}
-
-func (m *model) changeToBoards(boardId int) (tea.Model, tea.Cmd) {
-	m.screen = boards.Model{}
-	return m, tea.Batch(m.screen.Init(), boards.SelectedBoardIdCmd(boardId), m.windowSizeMsg)
-}
-
-func (m *model) changeToBoard(msg commands.ChangeScreenBoard) (tea.Model, tea.Cmd) {
-	m.screen = board.Model{
-		Board: data.Board(msg),
-	}
-
-	return m, tea.Batch(m.screen.Init(), m.windowSizeMsg)
-}
-
-func (m model) Init() tea.Cmd {
-	return m.screen.Init()
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-
-	case tea.KeyMsg:
-		s, ok := m.screen.(board.Model)
-		if ok && s.Editing {
-			break
-		}
-
-		switch msg.String() {
-		case tea.KeyCtrlC.String(), "q":
-			return m, tea.Quit
-		}
-	case commands.ChangeScreenBoards:
-		return m.changeToBoards(msg.CurrentBoardId)
-	case commands.ChangeScreenBoard:
-		return m.changeToBoard(msg)
-	case error:
-		// Not sure what the right way to do this is yet but we will get there.
-		panic(msg)
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-	}
-
-	var cmd tea.Cmd
-	m.screen, cmd = m.screen.Update(msg)
-
-	return m, cmd
-}
-
-func (m model) View() string {
-	return m.screen.View()
-}
-
 func main() {
-	model := model{screen: boards.Model{}}
+	webapp := flag.Bool("webapi", false, "Run the web API server instead of the TUI application")
 
-	var err error
-	model.config, err = config.Load()
+	storageType := flag.String("config.storageType", "", "Storage type (local or remote)")
+	remoteUrl := flag.String("config.remoteUrl", "", "Remote URL for the API, required if storage type is remote")
 
-	if err != nil {
-		panic(err)
+	flag.Parse()
+
+	if *webapp {
+		webapi.Run()
+		return
 	}
 
-	err = data.Init()
+	conf, err := config.Load()
 
 	if err != nil {
-		panic(err)
-	}
-
-	p := tea.NewProgram(model, tea.WithAltScreen())
-
-	if _, err := p.Run(); err != nil {
-		fmt.Printf("Something is wrong %v", err)
+		fmt.Printf("Error loading config: %v\n", err)
 		os.Exit(1)
 	}
+
+	save := false
+
+	if *storageType != "" {
+		conf.StorageType = *storageType
+
+		save = true
+	}
+
+	if *remoteUrl != "" {
+		conf.RemoteUrl = *remoteUrl
+		save = true
+	}
+
+	if conf.StorageType == "remote" && conf.RemoteUrl == "" {
+		fmt.Println("config.remoteUrl is required when using config.storageType == remote.")
+		os.Exit(1)
+	}
+
+	if save {
+		err := config.Save(conf)
+
+		if err != nil {
+			fmt.Printf("Error saving config: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	var provider data.Provider
+	switch conf.StorageType {
+	case "local":
+		provider = data.SqliteProvider{}
+	case "remote":
+		provider = data.HttpProvider{Url: conf.RemoteUrl}
+	default:
+		provider = data.SqliteProvider{}
+	}
+
+	app.Run(provider)
+
 }

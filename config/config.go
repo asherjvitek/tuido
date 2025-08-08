@@ -57,6 +57,27 @@ func Load() (Config, error) {
 	return config, err
 }
 
+func Save(config Config) error {
+	dir, err := util.GetAppDir()
+	if err != nil {
+		return err
+	}
+
+	path := filepath.Join(dir, "config.json")
+
+	conf, err := json.Marshal(config)
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(path, conf, 0644); err != nil {
+		return fmt.Errorf("failed to write config: %w", err)
+	}
+
+	return nil
+}
+
 func getDefault() Config {
 	return Config{
 		StorageType: "local",

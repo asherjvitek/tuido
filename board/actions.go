@@ -43,7 +43,7 @@ func (m *Model) moveItemToList(dest int) (tea.Model, tea.Cmd) {
 	a.Position = pos
 	a.ListId = m.workingList().ListId
 
-	err = data.UpdateItem(a)
+	err = m.Provider.UpdateItem(a)
 
 	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, a)
 
@@ -62,13 +62,13 @@ func (m *Model) moveItem(dest int) (tea.Model, tea.Cmd) {
 	a.Position = b.Position
 	b.Position = aPos
 
-	err := data.UpdateItem(a)
+	err := m.Provider.UpdateItem(a)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
 	}
 
-	err = data.UpdateItem(b)
+	err = m.Provider.UpdateItem(b)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -103,7 +103,7 @@ func (m *Model) addItem(dest int) (tea.Model, tea.Cmd) {
 		Position: pos,
 	}
 
-	err = data.InsertItem(&item)
+	err = m.Provider.InsertItem(&item)
 
 	// TODO: need to set the position
 	*m.workingItems() = slices.Insert(*m.workingItems(), m.selectedItem, item)
@@ -120,7 +120,7 @@ func (m *Model) deleteItem() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	err := data.DeleteItem((*m.workingItems())[m.selectedItem])
+	err := m.Provider.DeleteItem((*m.workingItems())[m.selectedItem])
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -139,7 +139,7 @@ func (m *Model) deleteList() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	err := data.DeleteList(*m.workingList())
+	err := m.Provider.DeleteList(*m.workingList())
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -203,7 +203,7 @@ func (m *Model) addList() (tea.Model, tea.Cmd) {
 		Position: pos,
 	}
 
-	data.InsertList(&list)
+	m.Provider.InsertList(&list)
 
 	m.Lists = append(m.Lists, list)
 	m.selectedList = len(m.Lists) - 1
@@ -228,13 +228,13 @@ func (m *Model) moveList(dest int) (tea.Model, tea.Cmd) {
 	a.Position = b.Position
 	b.Position = aPos
 
-	err := data.UpdateList(a)
+	err := m.Provider.UpdateList(a)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
 	}
 
-	err = data.UpdateList(b)
+	err = m.Provider.UpdateList(b)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -288,7 +288,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 			(*m.workingItems())[m.selectedItem].Text = m.input.Value()
 
-			err := data.UpdateItem((*m.workingItems())[m.selectedItem])
+			err := m.Provider.UpdateItem((*m.workingItems())[m.selectedItem])
 
 			if err != nil {
 				return m, commands.ErrorCmd(err)
@@ -300,7 +300,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case editTitle:
 			m.workingList().Name = m.input.Value()
 
-			err := data.UpdateList(*m.workingList())
+			err := m.Provider.UpdateList(*m.workingList())
 
 			if err != nil {
 				return m, commands.ErrorCmd(err)
@@ -308,7 +308,7 @@ func (m Model) handleEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case editBoard:
 			m.Board.Name = m.input.Value()
 
-			err := data.UpdateBoard(m.Board)
+			err := m.Provider.UpdateBoard(m.Board)
 
 			if err != nil {
 				return m, commands.ErrorCmd(err)

@@ -34,13 +34,13 @@ func (m *Model) moveBoard(dest int) (tea.Model, tea.Cmd) {
 
 	m.selected = dest
 
-	err := data.UpdateBoard(a)
+	err := m.Provider.UpdateBoard(a)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
 	}
 
-	err = data.UpdateBoard(b)
+	err = m.Provider.UpdateBoard(b)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -61,7 +61,7 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 		Position: pos,
 	}
 
-	err = data.InsertBoard(&board)
+	err = m.Provider.InsertBoard(&board)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -79,7 +79,7 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 		Position: pos,
 	}
 
-	err = data.InsertList(&list)
+	err = m.Provider.InsertList(&list)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -91,7 +91,7 @@ func (m *Model) createBoard() (tea.Model, tea.Cmd) {
 		Position: pos,
 	}
 
-	err = data.InsertItem(&item)
+	err = m.Provider.InsertItem(&item)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -106,7 +106,7 @@ func (m Model) deleteBoard() (tea.Model, tea.Cmd) {
 	}
 
 	board := m.Boards[m.selected]
-	err := data.DeleteBoard(board)
+	err := m.Provider.DeleteBoard(board.BoardId)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)

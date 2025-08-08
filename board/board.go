@@ -2,7 +2,6 @@ package board
 
 import (
 	"tuido/commands"
-	"tuido/config"
 	"tuido/data"
 	"tuido/style"
 	"tuido/util"
@@ -28,7 +27,7 @@ type Model struct {
 	Editing   bool
 	editField editField
 	input     textinput.Model
-	Config    config.Config
+	Provider data.Provider
 }
 
 type editField int
@@ -79,7 +78,7 @@ var (
 type initMsg []data.List
 
 func (m Model) Init() tea.Cmd {
-	lists, err := data.Lists(m.Board.BoardId)
+	lists, err := m.Provider.Lists(m.Board.BoardId)
 
 	if err != nil {
 		return commands.ErrorCmd(err)

@@ -10,6 +10,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type SqliteProvider struct{}
+
 func getDbPath() (string, error) {
 	appDir, err := util.GetAppDir()
 
@@ -20,45 +22,35 @@ func getDbPath() (string, error) {
 	return filepath.Join(appDir, "tuido.db"), nil
 }
 
-func Open(path string) (*sql.DB, error) {
+func open(path string) (*sql.DB, error) {
+	initDb := false
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		initDb = true
+		if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+			return nil, fmt.Errorf("failed to create directory for database: %w", err)
+		}
+	}
+
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open databasej %w", err)
+		return nil, fmt.Errorf("failed to open database %w", err)
 	}
 
 	if err = db.Ping(); err != nil {
 		return nil, err
 	}
 
-	return db, nil
-}
-
-func Init() error {
-	path, err := getDbPath()
-
-	if err != nil {
-		return err
-	}
-
-	initDb := false
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		initDb = true
-		if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
-			return fmt.Errorf("failed to create directory for database: %w", err)
+	if initDb {
+		if err := initializeDatabase(db, path); err != nil {
+			return nil, err
 		}
 	}
 
-	if !initDb {
-		return nil
-	}
+	return db, nil
+}
 
-	db, err := Open(path)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
+func initializeDatabase(db *sql.DB, path string) error {
 	initDbSql := `
 CREATE TABLE IF NOT EXISTS Board (
     BoardId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +90,7 @@ VALUES
 	(1, 'LETS GO TODO!', :startingPosition);
 	`
 
-	_, err = db.Exec(initDbSql, sql.Named("startingPosition", defaultPosition))
+	_, err := db.Exec(initDbSql, sql.Named("startingPosition", defaultPosition))
 
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
@@ -107,13 +99,13 @@ VALUES
 	return nil
 }
 
-func Boards() ([]Board, error) {
+func (dp SqliteProvider) Boards() ([]Board, error) {
 	path, err := getDbPath()
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -137,14 +129,14 @@ func Boards() ([]Board, error) {
 	return boards, nil
 }
 
-func Lists(boardId int) ([]List, error) {
+func (dp SqliteProvider) Lists(boardId int) ([]List, error) {
 
 	path, err := getDbPath()
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +155,7 @@ func Lists(boardId int) ([]List, error) {
 			return nil, fmt.Errorf("failed to scan list row: %w", err)
 		}
 
-		items, err := Items(l.ListId)
+		items, err := items(l.ListId)
 
 		if err != nil {
 			return nil, err
@@ -177,13 +169,13 @@ func Lists(boardId int) ([]List, error) {
 	return lists, nil
 }
 
-func Items(listId int) ([]Item, error) {
+func items(listId int) ([]Item, error) {
 	path, err := getDbPath()
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -207,13 +199,13 @@ func Items(listId int) ([]Item, error) {
 	return items, nil
 }
 
-func InsertBoard(board *Board) error {
+func (dp SqliteProvider) InsertBoard(board *Board) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -234,13 +226,13 @@ func InsertBoard(board *Board) error {
 	return nil
 }
 
-func UpdateBoard(board Board) error {
+func (dp SqliteProvider) UpdateBoard(board Board) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -254,13 +246,13 @@ func UpdateBoard(board Board) error {
 	return nil
 }
 
-func DeleteBoard(board Board) error {
+func (dp SqliteProvider) DeleteBoard(boardId int) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -269,7 +261,8 @@ func DeleteBoard(board Board) error {
 	_, err = db.Exec(`
 		DELETE FROM Item WHERE ListId IN (SELECT ListId FROM List WHERE BoardId = :BoardId);
 		DELETE FROM List WHERE BoardId = :BoardId;
-		DELETE FROM Board WHERE BoardId = :BoardId;`, sql.Named("BoardId", board.BoardId))
+		DELETE FROM Board WHERE BoardId = :BoardId;`, sql.Named("BoardId", boardId))
+
 	if err != nil {
 		return fmt.Errorf("failed to delete board: %w", err)
 	}
@@ -277,13 +270,13 @@ func DeleteBoard(board Board) error {
 	return nil
 }
 
-func InsertList(list *List) error {
+func (dp SqliteProvider) InsertList(list *List) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -304,13 +297,13 @@ func InsertList(list *List) error {
 	return nil
 }
 
-func DeleteList(list List) error {
+func (dp SqliteProvider) DeleteList(list List) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -329,13 +322,13 @@ func DeleteList(list List) error {
 	return nil
 }
 
-func UpdateList(list List) error {
+func (dp SqliteProvider) UpdateList(list List) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -349,13 +342,13 @@ func UpdateList(list List) error {
 	return nil
 }
 
-func InsertItem(item *Item) error {
+func (dp SqliteProvider) InsertItem(item *Item) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -376,13 +369,13 @@ func InsertItem(item *Item) error {
 	return nil
 }
 
-func DeleteItem(item Item) error {
+func (dp SqliteProvider) DeleteItem(item Item) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
@@ -397,13 +390,13 @@ func DeleteItem(item Item) error {
 	return nil
 }
 
-func UpdateItem(item Item) error {
+func (dp SqliteProvider) UpdateItem(item Item) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
 	}
 
-	db, err := Open(path)
+	db, err := open(path)
 	if err != nil {
 		return err
 	}
