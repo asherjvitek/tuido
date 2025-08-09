@@ -297,7 +297,7 @@ func (dp SqliteProvider) InsertList(list *List) error {
 	return nil
 }
 
-func (dp SqliteProvider) DeleteList(list List) error {
+func (dp SqliteProvider) DeleteList(listId int) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
@@ -309,12 +309,12 @@ func (dp SqliteProvider) DeleteList(list List) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("DELETE FROM Item WHERE ListId = ?", list.ListId)
+	_, err = db.Exec("DELETE FROM Item WHERE ListId = ?", listId)
 	if err != nil {
 		return fmt.Errorf("failed to delete items from list: %w", err)
 	}
 
-	_, err = db.Exec("DELETE FROM List WHERE ListId = ?", list.ListId)
+	_, err = db.Exec("DELETE FROM List WHERE ListId = ?", listId)
 	if err != nil {
 		return fmt.Errorf("failed to delete list: %w", err)
 	}
@@ -369,7 +369,7 @@ func (dp SqliteProvider) InsertItem(item *Item) error {
 	return nil
 }
 
-func (dp SqliteProvider) DeleteItem(item Item) error {
+func (dp SqliteProvider) DeleteItem(itemId int) error {
 	path, err := getDbPath()
 	if err != nil {
 		return err
@@ -381,7 +381,7 @@ func (dp SqliteProvider) DeleteItem(item Item) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("DELETE FROM Item WHERE ItemId = ?", item.ItemId)
+	_, err = db.Exec("DELETE FROM Item WHERE ItemId = ?", itemId)
 
 	if err != nil {
 		return fmt.Errorf("failed to delete item: %w", err)

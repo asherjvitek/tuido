@@ -120,7 +120,7 @@ func (m *Model) deleteItem() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	err := m.Provider.DeleteItem((*m.workingItems())[m.selectedItem])
+	err := m.Provider.DeleteItem((*m.workingItems())[m.selectedItem].ItemId)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)
@@ -139,7 +139,7 @@ func (m *Model) deleteList() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	err := m.Provider.DeleteList(*m.workingList())
+	err := m.Provider.DeleteList(m.workingList().ListId)
 
 	if err != nil {
 		return m, commands.ErrorCmd(err)

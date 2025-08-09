@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type HttpProvider struct{
+type HttpProvider struct {
 	Url string
 }
 
@@ -37,7 +37,7 @@ func (dp HttpProvider) Boards() ([]Board, error) {
 }
 
 func (dp HttpProvider) Lists(boardId int) ([]List, error) {
-	resp, err := http.Get(dp.getUrl("/Lists/boardId="+strconv.Itoa(boardId)))
+	resp, err := http.Get(dp.getUrl("/lists/" + strconv.Itoa(boardId)))
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch lists: %w", err)
@@ -62,7 +62,7 @@ func (dp HttpProvider) InsertBoard(board *Board) error {
 		return fmt.Errorf("failed to marshal board: %w", err)
 	}
 
-	resp, err := http.Post(dp.getUrl("boards"), "application/json", bytes.NewBuffer(content))
+	resp, err := http.Post(dp.getUrl("/boards"), "application/json", bytes.NewBuffer(content))
 
 	if err != nil {
 		return fmt.Errorf("failed to fetch lists: %w", err)
@@ -81,18 +81,58 @@ func (dp HttpProvider) InsertBoard(board *Board) error {
 }
 
 func (dp HttpProvider) UpdateBoard(board Board) error {
-	panic("unimplemented")
+	content, err := json.Marshal(board)
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal board: %w", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPut, dp.getUrl("/boards"), bytes.NewBuffer(content))
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(request)
+
+	if err != nil {
+		return fmt.Errorf("failed to update board: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update board, status code: %d", resp.StatusCode)
+	}
+
+	var lists []List
+	json.NewDecoder(resp.Body).Decode(&lists)
+
+	return nil
 }
 
 func (dp HttpProvider) DeleteBoard(boardId int) error {
-	panic("unimplemented")
+	request, err := http.NewRequest(http.MethodDelete, dp.getUrl("/boards/"+strconv.Itoa(boardId)), nil)
+	resp, err := http.DefaultClient.Do(request)
+
+	if err != nil {
+		return fmt.Errorf("failed to delete board: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to delete board, status code: %d", resp.StatusCode)
+	}
+
+	var lists []List
+	json.NewDecoder(resp.Body).Decode(&lists)
+
+	return nil
 }
 
 func (dp HttpProvider) InsertList(list *List) error {
 	panic("unimplemented")
 }
 
-func (dp HttpProvider) DeleteList(list List) error {
+func (dp HttpProvider) DeleteList(listId int) error {
 	panic("unimplemented")
 }
 
@@ -104,7 +144,7 @@ func (dp HttpProvider) InsertItem(item *Item) error {
 	panic("unimplemented")
 }
 
-func (dp HttpProvider) DeleteItem(item Item) error {
+func (dp HttpProvider) DeleteItem(itemId int) error {
 	panic("unimplemented")
 }
 
