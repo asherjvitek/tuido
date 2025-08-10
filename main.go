@@ -12,7 +12,6 @@ import (
 
 func main() {
 	webapp := flag.Bool("webapi", false, "Run the web API server instead of the TUI application")
-
 	storageType := flag.String("config.storageType", "", "Storage type (local or remote)")
 	remoteUrl := flag.String("config.remoteUrl", "", "Remote URL for the API, required if storage type is remote")
 
@@ -30,7 +29,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	setConfig(storageType, remoteUrl, &conf)
+
+	app.Run(getProvider(conf))
+
+}
+
+func setConfig(storageType *string, remoteUrl *string, conf *config.Config) {
+
 	save := false
+
+	if conf.StorageType == "" {
+		conf.StorageType = "local"
+		save = true
+	}
 
 	if *storageType != "" {
 		conf.StorageType = *storageType
@@ -49,24 +61,22 @@ func main() {
 	}
 
 	if save {
-		err := config.Save(conf)
+		err := config.Save(*conf)
 
 		if err != nil {
 			fmt.Printf("Error saving config: %v\n", err)
 			os.Exit(1)
 		}
 	}
+}
 
-	var provider data.Provider
+func getProvider(conf config.Config) data.Provider {
 	switch conf.StorageType {
 	case "local":
-		provider = data.SqliteProvider{}
+		return data.SqliteProvider{}
 	case "remote":
-		provider = data.HttpProvider{Url: conf.RemoteUrl}
+		return data.HttpProvider{Url: conf.RemoteUrl}
 	default:
-		provider = data.SqliteProvider{}
+		return data.SqliteProvider{}
 	}
-
-	app.Run(provider)
-
 }

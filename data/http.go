@@ -65,17 +65,20 @@ func (dp HttpProvider) InsertBoard(board *Board) error {
 	resp, err := http.Post(dp.getUrl("/boards"), "application/json", bytes.NewBuffer(content))
 
 	if err != nil {
-		return fmt.Errorf("failed to fetch lists: %w", err)
+		return fmt.Errorf("failed to insert board: %w", err)
 	}
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to fetch lists, status code: %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("failed to insert board, status code: %d", resp.StatusCode)
 	}
 
-	var lists []List
-	json.NewDecoder(resp.Body).Decode(&lists)
+	err = json.NewDecoder(resp.Body).Decode(&board)
+
+	if err != nil {
+		return fmt.Errorf("failed to decode insert board response")
+	}
 
 	return nil
 }
@@ -102,9 +105,6 @@ func (dp HttpProvider) UpdateBoard(board Board) error {
 		return fmt.Errorf("failed to update board, status code: %d", resp.StatusCode)
 	}
 
-	var lists []List
-	json.NewDecoder(resp.Body).Decode(&lists)
-
 	return nil
 }
 
@@ -122,32 +122,145 @@ func (dp HttpProvider) DeleteBoard(boardId int) error {
 		return fmt.Errorf("failed to delete board, status code: %d", resp.StatusCode)
 	}
 
-	var lists []List
-	json.NewDecoder(resp.Body).Decode(&lists)
-
 	return nil
 }
 
 func (dp HttpProvider) InsertList(list *List) error {
-	panic("unimplemented")
+	content, err := json.Marshal(list)
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal list: %w", err)
+	}
+
+	resp, err := http.Post(dp.getUrl("/lists"), "application/json", bytes.NewBuffer(content))
+
+	if err != nil {
+		return fmt.Errorf("failed to insert list: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("failed to insert list, status code: %d", resp.StatusCode)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&list)
+
+	if err != nil {
+		return fmt.Errorf("failed to decode insert list response")
+	}
+
+	return nil
 }
 
 func (dp HttpProvider) DeleteList(listId int) error {
-	panic("unimplemented")
+	request, err := http.NewRequest(http.MethodDelete, dp.getUrl("/lists/"+strconv.Itoa(listId)), nil)
+	resp, err := http.DefaultClient.Do(request)
+
+	if err != nil {
+		return fmt.Errorf("failed to delete list: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to delete list, status code: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (dp HttpProvider) UpdateList(list List) error {
-	panic("unimplemented")
+	content, err := json.Marshal(list)
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal list: %w", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPut, dp.getUrl("/lists"), bytes.NewBuffer(content))
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(request)
+
+	if err != nil {
+		return fmt.Errorf("failed to update list: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update list, status code: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (dp HttpProvider) InsertItem(item *Item) error {
-	panic("unimplemented")
+	content, err := json.Marshal(item)
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal item: %w", err)
+	}
+
+	resp, err := http.Post(dp.getUrl("/items"), "application/json", bytes.NewBuffer(content))
+
+	if err != nil {
+		return fmt.Errorf("failed to insert item: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("failed to insert item, status code: %d", resp.StatusCode)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&item)
+
+	if err != nil {
+		return fmt.Errorf("failed to decode insert item response")
+	}
+
+	return nil
 }
 
 func (dp HttpProvider) DeleteItem(itemId int) error {
-	panic("unimplemented")
+	request, err := http.NewRequest(http.MethodDelete, dp.getUrl("/items/"+strconv.Itoa(itemId)), nil)
+	resp, err := http.DefaultClient.Do(request)
+
+	if err != nil {
+		return fmt.Errorf("failed to delete item: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to delete item, status code: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (dp HttpProvider) UpdateItem(item Item) error {
-	panic("unimplemented")
+	content, err := json.Marshal(item)
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal item: %w", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPut, dp.getUrl("/items"), bytes.NewBuffer(content))
+	request.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(request)
+
+	if err != nil {
+		return fmt.Errorf("failed to update item: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update item, status code: %d", resp.StatusCode)
+	}
+
+	return nil
 }

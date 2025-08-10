@@ -20,7 +20,7 @@ func getBoards(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 
-    c.JSON(http.StatusOK, boards)
+	c.JSON(http.StatusOK, boards)
 }
 
 func insertBoard(c *gin.Context) {
@@ -58,7 +58,7 @@ func updateBoard(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, board)
+	c.JSON(http.StatusOK, nil)
 }
 
 func deleteBoard(c *gin.Context) {
@@ -91,7 +91,7 @@ func getLists(c *gin.Context) {
 		return
 	}
 
-    c.JSON(http.StatusOK, lists)
+	c.JSON(http.StatusOK, lists)
 }
 
 func insertList(c *gin.Context) {
@@ -185,7 +185,6 @@ func updateItem(c *gin.Context) {
 }
 
 func deleteItem(c *gin.Context) {
-
 	itemId := c.Params.ByName("itemId")
 	id, err := strconv.Atoi(itemId)
 
@@ -200,20 +199,20 @@ func deleteItem(c *gin.Context) {
 }
 
 func Run() {
-    router := gin.Default()
-    router.GET("/boards", getBoards)
-    router.POST("/boards", insertBoard)
-    router.PUT("/boards", updateBoard)
+	router := gin.Default()
+	router.GET("/boards", getBoards)
+	router.POST("/boards", insertBoard)
+	router.PUT("/boards", updateBoard)
 	router.DELETE("/boards/:boardId", deleteBoard)
 
 	router.GET("/lists/:boardId", getLists)
-    router.POST("/lists", insertList)
-    router.PUT("/lists", updateBoard)
+	router.POST("/lists", insertList)
+	router.PUT("/lists", updateList)
 	router.DELETE("/lists/:listId", deleteList)
 
-    router.POST("/items", insertItem)
-    router.PUT("/items", updateItem)
+	router.POST("/items", insertItem)
+	router.PUT("/items", updateItem)
 	router.DELETE("/items/:itemId", deleteItem)
 
-    router.Run("localhost:8082")
+	router.Run("localhost:8082")
 }
